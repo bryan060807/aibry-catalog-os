@@ -1,0 +1,36 @@
+catalog:
+  source_of_truth: "Music Vault"
+  canonical_instruction: "instructions/catalog-structure.md"
+  front_door_file: "project.md"
+  generated_outputs_are_canonical: false
+  missing_facts_policy: "do_not_invent"
+
+managed_songs:
+  - title: "The Kid in the Machine"
+    release_context: "standalone-single"
+  - title: "Pressure Flower"
+    release_context: "standalone-single"
+  - title: "Came Out Wrong"
+    release_context: "standalone-single"
+
+managed_album_track_songs:
+  - "01-rust-on-the-ignition"
+  - "02-oxidation-at-the-joints"
+  - "03-voltage-bleed"
+  - "04-scrap-iron-sermon"
+  - "05-hemlock-and-concrete"
+  - "06-tectonic-deficit"
+  - "07-seismic-debt"
+  - "08-ground-wire-autopsy"
+  - "09-wiretap-eviction"
+
+legacy_corpus:
+  "The Violence of Spring":
+    - "Cobalt Infrastructure"
+
+sprint_1:
+  cli_command: "catalog discover"
+  vault_mutation_allowed: false
+  network_allowed: false
+  database_allowed: false
+  ai_calls_allowed: false

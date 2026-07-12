@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibry.local/schemas/catalog-operation.schema.json",
+  "title": "Catalog Operation",
+  "type": "object",
+  "required": ["operationId", "kind", "targetPath", "reviewState", "reversible"],
+  "properties": {
+    "operationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["discover", "audit", "propose", "apply"]
+    },
+    "targetPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewState": {
+      "type": "string",
+      "enum": ["not_required", "proposed", "approved", "rejected", "applied"]
+    },
+    "reversible": {
+      "type": "boolean"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

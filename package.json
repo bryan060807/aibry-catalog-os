@@ -1,0 +1,23 @@
+{
+  "name": "aibry-catalog-os",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "aibry-catalog": "./dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/tests/*.test.js\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "catalog": "node dist/src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.5.0",
+    "yaml": "^2.8.1"
+  }
+}
