@@ -8,9 +8,11 @@ A directory location or naming pattern does not grant catalog status by itself.
 
 ## Admission rule
 
-A song directory is admitted as a managed song only when it has a direct, regular, non-link `project.md` front door that has been intentionally created or approved for that song.
+A song directory is structurally admitted by discovery when it has a direct, regular, non-link `project.md` front door.
 
-The front door must identify the song, its release context, its current sources, and any unresolved decisions without inventing approvals.
+Structural admission and governance approval are related but distinct states. A front door may establish the observed managed-catalog state without proving that the owner explicitly approved the song's admission, rights, release intent, or derivative relationship.
+
+The front door must identify the song, its release context, its current sources, and any unresolved decisions without inventing approvals. When explicit approval is absent or disputed, documentation must preserve an `approval unconfirmed` flag until the owner confirms or rejects admission.
 
 Album release containers are grouping directories and are never admitted as song projects.
 

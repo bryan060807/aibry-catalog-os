@@ -8,13 +8,21 @@ The authoritative vault remains `C:\AIBRY\music-vault`. All proposed operations 
 
 ## Current baseline
 
-- 12 admitted managed songs with safe direct `project.md` front doors.
+Read-only catalog refresh completed on 2026-07-12:
+
+- 30 admitted managed songs with direct `project.md` front doors.
 - 3 standalone managed songs.
-- 9 managed album tracks under the Ground Wire Gospel release container.
-- 1 provisional candidate: `project-memory/music/albums/the-architecture-is-failing/04-termination-code/`.
+- 27 managed album tracks across 3 release containers:
+  - Ground Wire Gospel: 9 tracks.
+  - The Architecture Is Failing: 5 tracks.
+  - The Violence of Spring: 13 tracks.
+- 0 provisional candidates reported by discovery.
+- 30 managed `project.md` files.
 - 251 legacy inventory entries: 24 directories and 227 files.
 - 2 placeholders excluded from catalog admission.
-- 0 unsafe front doors and 0 discovery warnings at the final Sprint 1 review.
+- 0 discovery warnings.
+
+The refresh found that `the-architecture-is-failing/04-termination-code` now has a direct `project.md` and is technically admitted by the current catalog rule. This is an observed state change from the earlier provisional decision and still requires owner confirmation that the admission was intentional.
 
 ## Stage 1 workstreams
 
@@ -40,7 +48,7 @@ Priority questions:
 Do not bulk-copy the 251-entry legacy inventory. Review one destination at a time in this order:
 
 1. [Ground Wire Gospel track 09 lyric variant selection](ground-wire-gospel-track-09-lyric-review.md) — decision recorded: `v2` is final; original is obsolete.
-2. Cobalt Infrastructure under The Violence of Spring.
+2. [The Violence of Spring album closeout](the-violence-of-spring-closeout.md) — complete; 13 tracks admitted, Cobalt Infrastructure confirmed at track 08.
 3. Title conflicts: Kerosene Communion and Seismic Debt.
 4. Remaining standalone legacy lyrics.
 5. Remaining album collections.
