@@ -2,7 +2,7 @@
 
 ## Status and method
 
-This is a read-only inventory of the current `lyrics/` corpus under `C:\AIBRY\music-vault`, checked against observed `project.md` files beneath `project-memory/music/`. Sprint 1 final admission-gated discovery reports 251 legacy entries (24 directories and 227 files), 12 safe `project.md` files, 1 missing provisional front door, 0 unsafe candidates, 2 excluded placeholders, and 0 warnings. No top-level legacy metadata corpus was observed; metadata directories currently observed are inside managed songs, managed Ground Wire Gospel tracks, or placeholder scaffolds. This inventory does not migrate, rename, deduplicate, or declare any lyric canonical.
+This is a read-only inventory of the current `lyrics/` corpus under `C:\AIBRY\music-vault`, checked against observed `project.md` files beneath `project-memory/music/`. Sprint 1 final admission-gated discovery reports 251 legacy entries (24 directories and 227 files), 30 safe `project.md` files, 0 provisional candidates, 0 unsafe candidates, 2 excluded placeholders, and 0 warnings. No top-level legacy metadata corpus was observed; metadata directories currently observed are inside managed songs, managed Ground Wire Gospel tracks, or placeholder scaffolds. This inventory does not migrate, rename, deduplicate, or declare any lyric canonical.
 
 ## Clear destination
 

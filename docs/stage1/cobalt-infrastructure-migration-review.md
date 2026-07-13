@@ -10,11 +10,11 @@ Reviewed song source:
 
 `lyrics/albums/the-violence-of-spring/08-cobalt-infrastructure.md`
 
-Previously proposed managed destination:
+Managed destination, now confirmed:
 
 `project-memory/music/albums/the-violence-of-spring/08-cobalt-infrastructure/`
 
-This review is planning-only. No vault files were copied, moved, renamed, edited, or deleted.
+This review preserves the pre-migration planning evidence. The managed destination is now present; this document does not authorize any further vault changes.
 
 ## Confirmed facts
 
@@ -23,10 +23,10 @@ This review is planning-only. No vault files were copied, moved, renamed, edited
 - The song content includes lyric sections, genre, mood, style, and production notes in one Markdown file.
 - The file hash recorded by the read-only snapshot is:
   `F55224090B293B5F5127C674E1A786F2A51AF6853C4821C328A1E7875276D657`.
-- No managed destination for Cobalt Infrastructure exists yet in the reviewed project-memory model.
+- The managed destination for Cobalt Infrastructure exists at the confirmed track-08 path above.
 - No duplicate Cobalt Infrastructure title was identified in the Stage 0 migration inventory.
 
-## Album-order conflict
+## Historical album-order conflict
 
 The legacy directory contains 13 numbered song files:
 
@@ -46,7 +46,7 @@ The legacy directory contains 13 numbered song files:
 
 However, the reviewed album-notes document enumerates 11 tracks and omits both **Cold Room Residue** and **Cobalt Infrastructure**. In that document, The Violence of Spring is numbered 7, Hemorrhagic Logic 8, Perennial Error 9, Soft Reboot 10, and False Spring 11.
 
-Therefore, the `08-` prefix is a current filesystem fact but not yet a verified final album track number.
+At the time of this snapshot, the `08-` prefix was a filesystem fact but not yet a verified final album track number. The later closeout confirms Cobalt Infrastructure as track 08.
 
 ## Additional source-quality findings
 
@@ -54,9 +54,9 @@ Therefore, the `08-` prefix is a current filesystem fact but not yet a verified 
 - The PowerShell snapshot displayed mojibake in apostrophes and punctuation. This may be a snapshot decoding issue rather than source corruption. The original lyric file must be re-read with explicit UTF-8 handling before any copy or normalization.
 - The album folder did not contain the requested `README.md` at snapshot time.
 
-## Proposed managed-song shape
+## Historical managed-song shape proposal
 
-Once album membership and track order are approved, create a song-centric destination under:
+The reviewed destination was:
 
 `project-memory/music/albums/the-violence-of-spring/<approved-track-number>-cobalt-infrastructure/`
 
@@ -90,7 +90,7 @@ The first guarded migration should be copy-only and limited to:
 
 No legacy source should be retired during the first migration.
 
-## Required decisions before migration
+## Historical pre-migration questions
 
 1. Is Cobalt Infrastructure definitely part of the final **The Violence of Spring** album?
 2. Are **Cold Room Residue** and **Cobalt Infrastructure** additions to the 11-track album-notes sequence, making the final album 13 tracks?
@@ -99,7 +99,7 @@ No legacy source should be retired during the first migration.
 5. Should the genre, mood, style, and production notes remain in the lyric file, move to metadata/production documents, or be represented in both with a declared canonical source?
 6. Is there related audio, artwork, licensing, or metadata elsewhere in the vault that must be linked before admission?
 
-## Guarded operation plan
+## Historical guarded operation plan
 
 After the decisions above are resolved:
 
@@ -120,4 +120,4 @@ Because the first operation should be copy-only, rollback is limited to removing
 
 ## Current verdict
 
-Cobalt Infrastructure is a clear song-level migration candidate under **The Violence of Spring**, but its final track number and the album's 11-versus-13-track sequence must be resolved before creating the managed destination.
+Cobalt Infrastructure is confirmed as track 08 of **The Violence of Spring**. Its managed destination is present; any further legacy-source or release-maintenance work requires separate review.

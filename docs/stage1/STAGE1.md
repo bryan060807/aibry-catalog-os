@@ -30,7 +30,7 @@ The refresh found that `the-architecture-is-failing/04-termination-code` now has
 
 Use [Catalog Admission and Provisional Content Policy](catalog-admission-and-provisional-content-policy.md) for directories that look like song projects but are not yet approved catalog entries.
 
-Initial case: `the-architecture-is-failing/04-termination-code` remains visible but unadmitted until its origin, rights, release intent, and destination are reviewed.
+Initial case: `the-architecture-is-failing/04-termination-code` is structurally admitted because a direct `project.md` exists, but explicit governance approval remains unconfirmed pending owner confirmation.
 
 ### 2. Contract stabilization
 
@@ -49,9 +49,10 @@ Do not bulk-copy the 251-entry legacy inventory. Review one destination at a tim
 
 1. [Ground Wire Gospel track 09 lyric variant selection](ground-wire-gospel-track-09-lyric-review.md) — decision recorded: `v2` is final; original is obsolete.
 2. [The Violence of Spring album closeout](the-violence-of-spring-closeout.md) — complete; 13 tracks admitted, Cobalt Infrastructure confirmed at track 08.
-3. Title conflicts: Kerosene Communion and Seismic Debt.
-4. Remaining standalone legacy lyrics.
-5. Remaining album collections.
+3. [Kerosene Communion title conflict](kerosene-communion-conflict-review.md) — complete; separate album tracks retained unchanged.
+4. [Seismic Debt / Fatal Design title conflict](seismic-debt-conflict-review.md) — complete; The Rare Friction retains Seismic Debt and Ground Wire Gospel track 07 is normalized as Fatal Design.
+5. Remaining standalone legacy lyrics.
+6. Remaining album collections.
 
 Each reviewed item should produce a proposed destination, source list, conflict notes, front-door plan, copy plan, validation plan, and rollback plan before any write.
 

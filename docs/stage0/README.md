@@ -4,9 +4,9 @@ This milestone records the Stage 0 read-only snapshot of the authoritative Music
 
 ## Final Sprint 1 discovery reconciliation
 
-- 12 managed songs: 3 standalone singles and 9 Ground Wire Gospel tracks.
-- 12 safe direct `project.md` files are present; the three standalone songs now have front doors.
-- `project-memory/music/albums/the-architecture-is-failing/04-termination-code/` is the sole provisional candidate, with one missing provisional front door.
+- 30 managed songs: 3 standalone singles and 27 album tracks across three release containers.
+- 30 safe direct `project.md` files are present.
+- 0 provisional candidates are reported by final admission-gated discovery.
 - 0 unsafe candidates; 2 placeholders excluded.
 - Legacy inventory: 251 entries (24 directories and 227 files); discovery warnings: 0.
 

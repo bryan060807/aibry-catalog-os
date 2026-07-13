@@ -18,7 +18,7 @@ Album release containers are grouping directories and are never admitted as song
 
 ## Provisional candidate
 
-A provisional candidate is a song-shaped directory under a managed root that does not have an approved direct `project.md`.
+A provisional candidate is a song-shaped directory under a managed root that does not have a safe direct `project.md`.
 
 Examples include:
 
@@ -31,9 +31,9 @@ Examples include:
 
 Provisional candidates remain discoverable for review but do not count as managed songs, discovered projects, or complete release content.
 
-## Current provisional item
+## Termination Code status
 
-`project-memory/music/albums/the-architecture-is-failing/04-termination-code/` is provisional cover-derived content. It must not receive `project.md` or catalog admission until the following are reviewed:
+`project-memory/music/albums/the-architecture-is-failing/04-termination-code/` now has a safe direct `project.md` and is structurally admitted. Its governance approval remains unconfirmed pending review of:
 
 - the original source song and relationship;
 - whether the result is a cover, derivative, adaptation, alternate, or separate composition;
