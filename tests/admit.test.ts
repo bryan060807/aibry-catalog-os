@@ -37,6 +37,7 @@ test("project admit defaults to PROPOSE and reports only unambiguous candidates 
     assert.match(report, /- Status: WOULD_ADMIT/);
     assert.match(report, /- Subject: `project-memory[\\/]music[\\/]singles[\\/]Eligible Song`/);
     assert.match(report, /- Recommendation: Review this proposal\./);
+    assert.doesNotMatch(report, /- Result:/);
     assert.match(report, /NEEDS_REVIEW — `project-memory[\\/]music[\\/]singles[\\/]Ambiguous Song`/);
     assert.match(report, /SKIPPED — `project-memory[\\/]music[\\/]singles[\\/]Existing Song`/);
   } finally { await rm(workspace, { recursive: true, force: true }); }
@@ -132,8 +133,15 @@ test("project admit apply creates only the eligible missing front door and never
     assert.equal(await readFile(path.join(existing, "project.md"), "utf8"), "# Preserve Me\n");
     const report = await readFile(output, "utf8");
     assert.match(report, /Mode: APPLY/);
+    assert.match(report, /- WOULD_ADMIT: 0/);
+    assert.match(report, /- ADMITTED: 1/);
+    assert.match(report, /- ERROR: 0/);
     assert.match(report, /ADMITTED — `project-memory[\\/]music[\\/]singles[\\/]Eligible Song`/);
     assert.match(report, /- Result: Created and verified a new direct regular project\.md file\./);
+    assert.doesNotMatch(report, /- Recommendation: Review this proposal\./);
+    const admittedFinding = report.match(/### ADMITTED[\s\S]*?(?=\n### |\n## Mutation Record)/)?.[0];
+    assert.ok(admittedFinding);
+    assert.doesNotMatch(admittedFinding, /- Recommendation:/);
     assert.match(report, /Created and verified: `project-memory[\\/]music[\\/]singles[\\/]Eligible Song[\\/]project\.md`/);
     assert.match(report, /This final report includes successful mutations and any execution errors/);
 

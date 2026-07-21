@@ -20,7 +20,7 @@ export function renderAdmissionReport(report: AdmissionReport): string {
   for (const entry of report.entries) {
     lines.push(`### ${entry.status} — \`${entry.relativePath}\``, "", `- Status: ${entry.status}`, `- Subject: \`${entry.relativePath}\``, `- Evidence: Target: \`${entry.projectRelativePath}\``);
     for (const evidence of entry.evidence) lines.push(`- Evidence: ${evidence}`);
-    lines.push(`- Recommendation: ${entry.recommendation}`);
+    if (entry.recommendation) lines.push(`- Recommendation: ${entry.recommendation}`);
     if (entry.result) lines.push(`- Result: ${entry.result}`);
     lines.push("");
   }

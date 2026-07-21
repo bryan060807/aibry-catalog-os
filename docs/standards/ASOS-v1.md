@@ -14,6 +14,6 @@ ASOS v1 defines the minimum operational reporting contract for focused AIBRY spe
 
 ## Required Report Contract
 
-Every final report must include `SPECIALIST`, Specialist Version, Operational Standard version, unique Run ID, Mode, Started, Completed, Duration, a complete status summary including `ERROR` even when zero, and findings with `Status`, `Subject`, `Evidence`, `Recommendation`, plus `Result` when an action was attempted.
+Every final report must include `SPECIALIST`, Specialist Version, Operational Standard version, unique Run ID, Mode, Started, Completed, Duration, a complete status summary including `ERROR` even when zero, and findings with `Status`, `Subject`, and `Evidence`. Findings that have not completed an action include a `Recommendation`. Findings for attempted actions include a `Result`; a successfully applied finding must not retain proposal-only instructions.
 
 Policy or evidence rejection must be distinct from execution failure. A specialist must preserve evidence paths, refuse unsafe overwrite, record every mutation, and finalize its report after partial failures.

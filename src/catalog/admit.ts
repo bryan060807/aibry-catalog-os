@@ -8,14 +8,35 @@ import { assertPathHasNoAliases } from "../policy/source-of-truth.js";
 export type AdmissionMode = "OBSERVE" | "PROPOSE" | "APPLY";
 export type AdmissionStatus = "WOULD_ADMIT" | "ADMITTED" | "SKIPPED" | "NEEDS_REVIEW" | "ERROR";
 
-export type AdmissionEntry = {
-  status: AdmissionStatus;
+type AdmissionEvidence = {
   relativePath: string;
   projectRelativePath: string;
   evidence: string[];
-  recommendation: string;
-  result?: string;
 };
+
+type ProposedAdmissionEntry = AdmissionEvidence & {
+  status: "WOULD_ADMIT";
+  recommendation: string;
+  result?: never;
+};
+
+export type AdmissionEntry =
+  | ProposedAdmissionEntry
+  | AdmissionEvidence & {
+      status: "SKIPPED" | "NEEDS_REVIEW";
+      recommendation: string;
+      result?: never;
+    }
+  | AdmissionEvidence & {
+      status: "ADMITTED";
+      recommendation?: never;
+      result: string;
+    }
+  | AdmissionEvidence & {
+      status: "ERROR";
+      recommendation: string;
+      result: string;
+    };
 
 export type AdmissionReport = {
   vaultPath: string;
@@ -39,7 +60,7 @@ export type AdmissionReport = {
 export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PROPOSE"): Promise<AdmissionReport> {
   const startedAt = new Date();
   const discovery = await discoverCatalog(vaultPath);
-  const entries: AdmissionEntry[] = [];
+  let entries: AdmissionEntry[] = [];
 
   for (const song of discovery.managedSongs) entries.push(skipped(song));
   for (const placeholder of discovery.placeholders) {
@@ -56,17 +77,21 @@ export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PR
   }
 
   if (mode === "APPLY") {
-    for (const entry of entries.filter((entry) => entry.status === "WOULD_ADMIT")) {
+    const appliedEntries: AdmissionEntry[] = [];
+    for (const entry of entries) {
+      if (entry.status !== "WOULD_ADMIT") {
+        appliedEntries.push(entry);
+        continue;
+      }
+
       try {
         await createAdmittedProject(discovery.vaultPath, entry);
-        entry.status = "ADMITTED";
-        entry.result = "Created and verified a new direct regular project.md file.";
+        appliedEntries.push(applied(entry));
       } catch (error: unknown) {
-        entry.status = "ERROR";
-        entry.result = `No admission was confirmed: ${errorMessage(error)}`;
-        entry.recommendation = "Investigate the execution failure, preserve the existing target state, and rerun only after review.";
+        appliedEntries.push(failed(entry, error));
       }
     }
+    entries = appliedEntries;
   }
 
   const completedAt = new Date();
@@ -88,6 +113,27 @@ export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PR
       "Only a direct, missing project.md with one approved UTF-8 Markdown lyric source and an unambiguous observed directory identity is eligible.",
       "No AI services, databases, or network calls are used."
     ]
+  };
+}
+
+function applied(entry: ProposedAdmissionEntry): AdmissionEntry {
+  return {
+    status: "ADMITTED",
+    relativePath: entry.relativePath,
+    projectRelativePath: entry.projectRelativePath,
+    evidence: entry.evidence,
+    result: "Created and verified a new direct regular project.md file."
+  };
+}
+
+function failed(entry: ProposedAdmissionEntry, error: unknown): AdmissionEntry {
+  return {
+    status: "ERROR",
+    relativePath: entry.relativePath,
+    projectRelativePath: entry.projectRelativePath,
+    evidence: entry.evidence,
+    result: `No admission was confirmed: ${errorMessage(error)}`,
+    recommendation: "Investigate the execution failure, preserve the existing target state, and rerun only after review."
   };
 }
 
