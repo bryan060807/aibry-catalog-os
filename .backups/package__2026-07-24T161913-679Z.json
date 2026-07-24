@@ -7,12 +7,12 @@
     "aibry-catalog": "./dist/src/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/generalize-live-apply.mjs && tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/*.test.js\"",
     "test:operator-ui": "npm run build && node --test \"dist/tests/operator-ui.test.js\"",
     "test:powershell51": "npm run build && node --test \"dist/tests/windows-lyric-source-compatibility.test.js\"",
     "test:autopilot": "npm run build && node --test \"dist/tests/catalog-autopilot.test.js\"",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node scripts/generalize-live-apply.mjs && tsc -p tsconfig.json --noEmit",
     "catalog": "node dist/src/cli.js",
     "operator-ui": "node dist/src/operator-ui/server.js",
     "operator-ui:dev": "npm run build && node --watch dist/src/operator-ui/server.js",

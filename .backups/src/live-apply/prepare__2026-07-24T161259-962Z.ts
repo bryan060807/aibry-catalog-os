@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import {
   loadAndVerifyGuardedPlan as loadAndVerifyGuardedPlanCore,
   prepareGuardedLiveApply as prepareGuardedLiveApplyCore
@@ -21,6 +21,10 @@ export async function prepareGuardedLiveApply(
 ): Promise<GuardedLiveApplyPlan> {
   const packagePolicy = options.packagePolicy ?? "ground-wire-gospel-pilot";
   const prepared = await prepareGuardedLiveApplyCore(options, testDependencies);
+  if (packagePolicy === "bounded-lyric-source-batch" && prepared.operationPaths.length !== 7) {
+    await rm(options.outputPath, { force: true });
+    throw new Error(`Bounded live execution currently requires a seven-operation plan; found ${prepared.operationPaths.length}. The package remains valid for review, but live authorization is refused until the execution core is generalized.`);
+  }
   const {
     canonicalHashPayload: _canonicalHashPayload,
     planSha256: _planSha256,

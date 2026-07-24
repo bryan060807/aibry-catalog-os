@@ -1,5 +1,4 @@
 import type { LyricSourceProposalOperation } from "../lyric-source/contracts.js";
-import type { GuardedPackagePolicy } from "./package-verifier.js";
 
 export type GuardedLiveApplyCounts = {
   catalogFindings: number;
@@ -34,7 +33,6 @@ export type GuardedLiveApplyPlan = {
   state: "prepared";
   operatorControlled: true;
   specialistAuthority: "none";
-  packagePolicy?: GuardedPackagePolicy;
   package: { path: string; artifactSha256: string };
   proposalId: string;
   proposalSha256: string;

@@ -31,7 +31,7 @@ async function main(): Promise<void> {
       rl.close();
       if (answer.trim() !== loaded.plan.planSha256) throw new Error("Interactive authorization did not match the exact guarded plan SHA-256.");
     }
-    const result = await executeGuardedLiveApply(planPath, expectedSha256);
+    const result = await executeGuardedLiveApply({ planPath, expectedPlanSha256: expectedSha256 });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return;
   }

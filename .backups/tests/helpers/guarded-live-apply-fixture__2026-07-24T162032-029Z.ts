@@ -33,29 +33,13 @@ export async function createGuardedFixture(): Promise<GuardedFixture> {
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     const root = await mkdtemp(path.join(os.tmpdir(), "catalog-guarded-live-apply-"));
     try {
-      const fixture = await createGuardedFixtureAt(root, 4);
+      const fixture = await createGuardedFixtureAt(root);
       fixtureTemplate = await captureFixtureTemplate(root);
       return fixture;
-    } catch (error: unknown) {
-      lastError = error;
-      await rm(root, { recursive: true, force: true });
     }
+    catch (error: unknown) { lastError = error; await rm(root, { recursive: true, force: true }); }
   }
-  throw lastError instanceof Error ? lastError : new Error("Unable to create deterministic guarded fixture.");
-}
-
-export async function createGuardedFiveOperationFixture(): Promise<GuardedFixture> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "catalog-guarded-live-apply-five-"));
-  try {
-    const fixture = await createGuardedFixtureAt(root, 2);
-    if (fixture.proposal.operations.length !== 5) {
-      throw new Error(`Expected five-operation guarded fixture; found ${fixture.proposal.operations.length}.`);
-    }
-    return fixture;
-  } catch (error) {
-    await rm(root, { recursive: true, force: true });
-    throw error;
-  }
+  throw lastError instanceof Error ? lastError : new Error("Unable to create deterministic seven-operation guarded fixture.");
 }
 
 async function materializeGuardedFixtureTemplate(template: Map<string, Buffer>): Promise<GuardedFixture> {
@@ -88,14 +72,13 @@ async function visit(root: string, relative: string, output: Map<string, Buffer>
   }
 }
 
-async function createGuardedFixtureAt(root: string, maxTracks: 2 | 4): Promise<GuardedFixture> {
+async function createGuardedFixtureAt(root: string): Promise<GuardedFixture> {
   const source = await materializeGroundWireGospelFixture(path.join(root, "source"));
-  const scout = await scoutLyricSourceBatchWorkflow({ vaultRoot: source.vault, refreshReportPath: source.refreshReportPath, outputDirectory: path.join(source.reportsRoot, "scout"), minTracks: 2, maxTracks });
+  const scout = await scoutLyricSourceBatchWorkflow({ vaultRoot: source.vault, refreshReportPath: source.refreshReportPath, outputDirectory: path.join(source.reportsRoot, "scout"), minTracks: 2, maxTracks: 4 });
   if (!scout.planningInputPath) throw new Error("Guarded fixture scout did not produce planning input.");
   const proposalPath = path.join(source.reportsRoot, "package-source", canonicalFilename("lyric-source-designation-proposal.v1"));
   const proposal = await planLyricSourceMigrationWorkflow(scout.planningInputPath, proposalPath);
-  const expectedOperations = maxTracks + 3;
-  if (proposal.operations.length !== expectedOperations) throw new Error(`Temporary Ground Wire fixture did not seal ${expectedOperations} operations; found ${proposal.operations.length}.`);
+  if (proposal.operations.length !== 7) throw new Error(`Temporary Ground Wire fixture did not seal seven operations; found ${proposal.operations.length}.`);
   const decision = buildReviewDecision(proposal.proposalId, proposal.proposalSha256, "approved", proposal.generatedAt);
   const decisionPath = path.join(path.dirname(proposalPath), canonicalFilename("asos-authority-decision.v1"));
   await writeJson(decisionPath, decision);
@@ -114,14 +97,13 @@ async function createGuardedFixtureAt(root: string, maxTracks: 2 | 4): Promise<G
   await writeFile(paths.script, candidate.content, "utf8");
   const proposalArtifactSha256 = sha256Bytes(await readFile(paths.proposal));
   const scriptSha256 = sha256Bytes(await readFile(paths.script));
-  const operationCount = proposal.operations.length;
   const dryRun: LyricSourceDryRunReport = {
     contract: "lyric-source-apply-dry-run-report.v1", generatedAt: proposal.generatedAt, powerShellVersion: "5.1.19041.5608",
     proposalIdentity: { proposalId: proposal.proposalId, proposalSha256: proposal.proposalSha256, artifactSha256: proposalArtifactSha256 },
     scriptIdentity: { contract: "lyric-source-windows-apply-script.v1", scriptSha256 },
-    parsedCollectionCounts: { operations: operationCount, evidence: proposal.evidence.length, guards: proposal.guardFiles.length },
+    parsedCollectionCounts: { operations: 7, evidence: proposal.evidence.length, guards: proposal.guardFiles.length },
     normalizedPathChecks: proposal.operations.map((item) => ({ path: item.path, normalized: item.path, passed: true })),
-    rollbackChecks: { targetCount: operationCount, originalsRehashed: true, pathsInsideRollbackRoot: true },
+    rollbackChecks: { targetCount: 7, originalsRehashed: true, pathsInsideRollbackRoot: true },
     reportChecks: { preReportLoadedFromDisk: true, postReportLoadedFromDisk: true, sameLoader: true, wrappedObjectsNormalized: true },
     resolverLookupChecks: { expected: proposal.resolverExpectedProjects.length, foundExactlyOnce: proposal.resolverExpectedProjects.length },
     expectedDeltas: proposal.expectedFindingDeltas, forcedFailureRollback: { attempted: true, restoredAllTargets: true },
@@ -161,15 +143,12 @@ export function fixtureExecutionDependencies(mode: { failAtWriteIndex?: number; 
 }
 
 async function runFixtureScript(invocation: GuardedScriptInvocation, plan: GuardedLiveApplyPlan, verified: GuardedPackageVerification, mode: { failAtWriteIndex?: number; failStage?: "before-write" | "post-refresh" | "validator" | "unrelated"; corruptRollback?: boolean }): Promise<GuardedProcessOutcome> {
-  void invocation;
   const proposalPath = plan.artifacts.find((item) => item.role === "proposal")!.path;
   const proposal = parseAndVerifyLyricSourceProposal(await readFile(proposalPath, "utf8"), proposalPath);
   const workflowConfigPath = plan.expectedResultPaths.workflowAdapterConfig;
   const validatorConfigPath = plan.expectedResultPaths.validatorAdapterConfig;
   const workflowConfig = JSON.parse(await readFile(workflowConfigPath, "utf8")) as RefreshAdapterConfig;
   const validatorConfig = JSON.parse(await readFile(validatorConfigPath, "utf8")) as ValidatorAdapterConfig;
-  void workflowConfig;
-  void validatorConfig;
   await runRefreshAdapter(workflowConfigPath, "pre", plan.expectedResultPaths.preRefresh);
   const packageRoot = path.join(plan.intendedRollbackRoot, "lyric-source-fixture-package");
   await mkdir(packageRoot, { recursive: true });
@@ -182,10 +161,9 @@ async function runFixtureScript(invocation: GuardedScriptInvocation, plan: Guard
     const bytes = await readFile(destination);
     targets.push({ path: operation.path, byteSize: bytes.byteLength, originalSha256: sha256Bytes(bytes) });
   }
-  const operationCount = verified.operations.length;
-  await writeJson(path.join(packageRoot, "rollback-manifest.json"), { contract: "lyric-source-rollback-manifest.v1", targetCount: operationCount, targets });
+  await writeJson(path.join(packageRoot, "rollback-manifest.json"), { contract: "lyric-source-rollback-manifest.v1", targetCount: 7, targets });
   if (mode.failStage === "before-write") {
-    await writeJson(plan.expectedResultPaths.applyResult, { contract: "lyric-source-apply-result.v1", proposalId: plan.proposalId, proposalSha256: plan.proposalSha256, status: "failed-before-write", operationCount });
+    await writeJson(plan.expectedResultPaths.applyResult, { contract: "lyric-source-apply-result.v1", proposalId: plan.proposalId, proposalSha256: plan.proposalSha256, status: "failed-before-write", operationCount: 7 });
     return outcome(1);
   }
   let writes = 0;
@@ -211,7 +189,7 @@ async function runFixtureScript(invocation: GuardedScriptInvocation, plan: Guard
       actualScriptSha256: roleSha("script"), handoffArtifactSha256: roleSha("handoff"),
       preWorkflowReportSha256: sha256Bytes(await readFile(plan.expectedResultPaths.preRefresh)),
       postWorkflowReportSha256: sha256Bytes(await readFile(plan.expectedResultPaths.postRefresh)), validatorReportSha256: sha256Bytes(await readFile(plan.expectedResultPaths.validator)),
-      status: "applied-and-validated", rollbackPackage: packageRoot, operationCount, changedPaths: plan.operationPaths,
+      status: "applied-and-validated", rollbackPackage: packageRoot, operationCount: 7, changedPaths: plan.operationPaths,
       expectedCounts: plan.expectedPostApplyCounts, actualCounts: post.counts, unrelatedFileComparisonPassed: true
     });
     return outcome(0);
@@ -221,13 +199,13 @@ async function runFixtureScript(invocation: GuardedScriptInvocation, plan: Guard
     if (mode.corruptRollback) await writeFile(contractPathToNative(packageRoot, verified.operations[0]!.path), "corrupted rollback evidence\n", "utf8");
     await rm(plan.expectedResultPaths.postRefresh, { force: true });
     await rm(plan.expectedResultPaths.validator, { force: true });
-    await writeJson(plan.expectedResultPaths.applyResult, { ...failureResult(plan, packageRoot, true, operationCount), error: error instanceof Error ? error.message : String(error) });
+    await writeJson(plan.expectedResultPaths.applyResult, { ...failureResult(plan, packageRoot, true), error: error instanceof Error ? error.message : String(error) });
     return outcome(1);
   }
 }
 
-function failureResult(plan: GuardedLiveApplyPlan, rollbackPackage: string | null, rollbackRestored: boolean, operationCount: number) {
-  return { contract: "lyric-source-apply-result.v1", proposalId: plan.proposalId, proposalSha256: plan.proposalSha256, status: "failed-rolled-back", rollbackPackage, rollbackRestored, operationCount };
+function failureResult(plan: GuardedLiveApplyPlan, rollbackPackage: string | null, rollbackRestored: boolean) {
+  return { contract: "lyric-source-apply-result.v1", proposalId: plan.proposalId, proposalSha256: plan.proposalSha256, status: "failed-rolled-back", rollbackPackage, rollbackRestored, operationCount: 7 };
 }
 function outcome(exitCode: number): GuardedProcessOutcome { return { exitCode, signal: null, stdout: "fixture harness\n", stderr: "", childDispositionKnown: true }; }
 async function writeJson(filePath: string, value: unknown): Promise<void> { await mkdir(path.dirname(filePath), { recursive: true }); await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8"); }

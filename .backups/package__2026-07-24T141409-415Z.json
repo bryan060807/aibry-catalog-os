@@ -1,0 +1,22 @@
+{
+  "name": "aibry-specialist-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "specialist": "npm run build && node dist/src/cli.js",
+    "framework": "npm run build && node dist/src/framework-cli.js",
+    "catalog:autopilot:prepare": "npm run build && node dist/src/live-apply/cli.js prepare --package-policy bounded-lyric-source-batch",
+    "catalog:autopilot:execute": "npm run build && node dist/src/live-apply/cli.js execute",
+    "guarded-live-apply": "npm run build && node dist/src/live-apply/cli.js",
+    "operator": "npm run build && node dist/src/operator-ui/server.js",
+    "operator:desktop": "npm run build && electron dist/src/operator-ui/electron-main.js"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "electron": "latest",
+    "typescript": "latest"
+  }
+}

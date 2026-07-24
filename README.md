@@ -366,3 +366,17 @@ The long-term platform direction also includes applying ASOS and AVC to Garage A
 ## Milestone
 
 The `asos-v1` tag marks the point where AIBRY moved from isolated automation tools to a governed specialist platform with explicit authority, shared language, and earned operational trust.
+
+## First automated production loop
+
+On 2026-07-24, Catalog OS completed its first automated, human-governed ASOS production loop against the canonical Music Vault.
+
+The run completed refresh, deterministic scout, proposal, exact hash-bound approval, compatibility fixture, PowerShell 5.1 dry run, sealed guarded plan, live APPLY, and independent validation.
+
+Production run: `live-batch-2026-07-24-02`  
+Final status: `applied-and-validated`  
+Operation count: `5`  
+Validated catalog findings: `51 → 49`  
+Validated asset findings: `226 → 222`
+
+See `docs/standards/CATALOG-OS-FIRST-AUTOMATED-PRODUCTION-LOOP.md` for the exact proposal, plan, changed paths, safety boundary, and next implementation loop.

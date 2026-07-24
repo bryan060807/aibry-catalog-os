@@ -19,8 +19,8 @@ export async function prepareGuardedLiveApply(
   options: PrepareGuardedLiveApplyOptions,
   testDependencies?: PrepareGuardedLiveApplyTestDependencies
 ): Promise<GuardedLiveApplyPlan> {
-  const packagePolicy = options.packagePolicy ?? "ground-wire-gospel-pilot";
   const prepared = await prepareGuardedLiveApplyCore(options, testDependencies);
+  const packagePolicy = options.packagePolicy ?? "ground-wire-gospel-pilot";
   const {
     canonicalHashPayload: _canonicalHashPayload,
     planSha256: _planSha256,

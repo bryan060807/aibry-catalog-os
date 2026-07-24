@@ -34,7 +34,7 @@ export type GuardedLiveApplyPlan = {
   state: "prepared";
   operatorControlled: true;
   specialistAuthority: "none";
-  packagePolicy?: GuardedPackagePolicy;
+  packagePolicy: GuardedPackagePolicy;
   package: { path: string; artifactSha256: string };
   proposalId: string;
   proposalSha256: string;
