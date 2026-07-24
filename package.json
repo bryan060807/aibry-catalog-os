@@ -9,8 +9,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/*.test.js\"",
+    "test:operator-ui": "npm run build && node --test \"dist/tests/operator-ui.test.js\"",
+    "test:powershell51": "npm run build && node --test \"dist/tests/windows-lyric-source-compatibility.test.js\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "catalog": "node dist/src/cli.js"
+    "catalog": "node dist/src/cli.js",
+    "operator-ui": "node dist/src/operator-ui/server.js",
+    "operator-ui:dev": "npm run build && node --watch dist/src/operator-ui/server.js",
+    "guarded-live-apply": "node dist/src/live-apply/cli.js",
+    "test:guarded-live-apply": "npm run build && node --test \"dist/tests/guarded-live-apply.test.js\""
   },
   "engines": {
     "node": ">=20"

@@ -1,0 +1,16 @@
+{
+  "contract": "golden-lyric-source-migration-fixture.v1",
+  "batchId": "black-box-psalms-tracks-01-02-03-04-07",
+  "name": "Black Box Psalms",
+  "albumSlug": "black-box-psalms",
+  "generatedAt": "2026-07-22T12:00:00.000Z",
+  "tracks": [
+    { "slug": "01-kerosene-communion", "include": true },
+    { "slug": "02-foreign-body", "include": true },
+    { "slug": "03-black-box-recorder", "include": true },
+    { "slug": "04-empty-orchestra", "include": true },
+    { "slug": "07-static-prayer", "include": true }
+  ],
+  "baseline": { "catalogFindings": 64, "assetFindings": 252, "blocksExistingProposal": 126 },
+  "expected": { "catalogFindings": 59, "assetFindings": 242, "blocksExistingProposal": 116 }
+}

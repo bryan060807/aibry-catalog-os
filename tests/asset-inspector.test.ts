@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -44,16 +45,48 @@ test("Asset Inspector inventories Anticipation-style assets without choosing can
 
     const canonicalLyric = inspection.findings.find((finding) => finding.type === "canonical-lyric-unresolved");
     assert.equal(canonicalLyric?.status, "blocked-insufficient-evidence");
-    assert.equal(canonicalLyric?.evidencePaths.length, 2);
-    assert.ok(canonicalLyric?.summary.includes("does not declare a canonical lyric"));
+    assert.equal(canonicalLyric?.evidencePaths.length, 3);
+    assert.ok(canonicalLyric?.evidencePaths.some((entry) => entry.endsWith("project.md")));
+    assert.ok(canonicalLyric?.summary.includes("no lyric-source-designation.v1 contract passed resolver verification"));
 
     const provenance = inspection.findings.find((finding) => finding.type === "provenance-insufficient");
     assert.equal(provenance?.status, "blocked-insufficient-evidence");
-    assert.deepEqual(provenance?.evidencePaths, []);
+    assert.ok(provenance?.evidencePaths.some((entry) => entry.endsWith("project.md")));
+    assert.equal(inspection.lyricSourceResolution.state, "unresolved");
 
     assert.ok(inspection.findings.some((finding) => finding.type === "release-admin-empty"));
     assert.ok(inspection.findings.some((finding) => finding.type === "multiple-audio-variants"));
     assert.ok(inspection.findings.some((finding) => finding.type === "media-info-audio-evidence"));
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("Asset Inspector clears lyric blockers only for a verified designation and matching migration record", async () => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "asset-inspector-designation-"));
+  const vault = path.join(workspace, "vault");
+  try {
+    await setupVault(vault);
+    await approveLyricDesignation(vault);
+
+    const report = await inspectCatalogAssets(vault);
+    const inspection = report.inspections[0];
+    assert.ok(inspection);
+    assert.equal(inspection.lyricSourceResolution.state, "verified");
+    assert.equal(inspection.findings.some((finding) => finding.type === "canonical-lyric-unresolved"), false);
+    assert.equal(inspection.findings.some((finding) => finding.type === "provenance-insufficient"), false);
+    assert.ok(inspection.findings.some((finding) => finding.type === "multiple-audio-variants"));
+    assert.ok(inspection.findings.some((finding) => finding.type === "media-info-audio-evidence"));
+
+    const managedPath = path.join(vault, "project-memory", "music", "singles", "anticipation-of-the-crash", "lyrics", "anticipation-of-the-crash.txt");
+    await writeFile(managedPath, "drifted managed lyric\n", "utf8");
+    const drifted = await inspectCatalogAssets(vault);
+    const driftedInspection = drifted.inspections[0];
+    assert.ok(driftedInspection);
+    assert.equal(driftedInspection.lyricSourceResolution.state, "unresolved");
+    assert.ok(driftedInspection.lyricSourceResolution.failures.some((failure) => failure.includes("managed lyric hash")));
+    assert.ok(driftedInspection.findings.some((finding) => finding.type === "canonical-lyric-unresolved"));
+    assert.ok(driftedInspection.findings.some((finding) => finding.type === "provenance-insufficient"));
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -91,6 +124,58 @@ test("catalog inspect-assets refuses to write inside the vault", async () => {
     await rm(workspace, { recursive: true, force: true });
   }
 });
+
+async function approveLyricDesignation(vault: string): Promise<void> {
+  const projectDirectory = path.join(vault, "project-memory", "music", "singles", "anticipation-of-the-crash");
+  const projectPath = path.join(projectDirectory, "project.md");
+  const sourceRelative = "lyrics/singles/anticipation-of-the-crash.txt";
+  const managedRelative = "project-memory/music/singles/anticipation-of-the-crash/lyrics/anticipation-of-the-crash.txt";
+  const manifestRelative = "project-memory/music/singles/migration-manifest.md";
+  const sourcePath = path.join(vault, ...sourceRelative.split("/"));
+  const managedPath = path.join(vault, ...managedRelative.split("/"));
+  const manifestPath = path.join(vault, ...manifestRelative.split("/"));
+  await mkdir(path.dirname(sourcePath), { recursive: true });
+  await writeFile(sourcePath, "lyric candidate\n", "utf8");
+  const sourceBytes = await readFile(sourcePath);
+  const managedBytes = await readFile(managedPath);
+  const sourceSha256 = createHash("sha256").update(sourceBytes).digest("hex");
+  const managedSha256 = createHash("sha256").update(managedBytes).digest("hex");
+
+  await writeFile(projectPath, `---
+provenance:
+  contract: lyric-source-designation.v1
+  status: verified
+  migration_record: ${manifestRelative}
+source_path: ${sourceRelative}
+canonical_lyric_source: ${sourceRelative}
+managed_lyric_copy: ${managedRelative}
+source_sha256: ${sourceSha256}
+managed_sha256: ${managedSha256}
+verification_method: sha256-byte-match
+verification_state: verified
+designation_state: human-approved
+---
+# Anticipation of the Crash
+`, "utf8");
+
+  await writeFile(manifestPath, `---
+contract: lyric-source-migration-manifest.v1
+entries:
+  - project_path: project-memory/music/singles/anticipation-of-the-crash
+    source_path: ${sourceRelative}
+    managed_lyric_copy: ${managedRelative}
+    source_size_bytes: ${sourceBytes.length}
+    managed_size_bytes: ${managedBytes.length}
+    source_sha256: ${sourceSha256}
+    managed_sha256: ${managedSha256}
+    verification_method: sha256-byte-match
+    verification_state: verified
+    designation_state: human-approved
+    verified_at: 2026-07-22T00:00:00.000Z
+---
+# Lyric Source Migration Manifest
+`, "utf8");
+}
 
 async function setupVault(vault: string): Promise<void> {
   const project = path.join(vault, "project-memory", "music", "singles", "anticipation-of-the-crash");

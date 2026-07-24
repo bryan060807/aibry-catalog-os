@@ -26,3 +26,5 @@ An entry is eligible only when discovery observes a song-shaped managed location
 - `SKIPPED`: an existing safe front door or excluded scaffold; nothing is changed.
 - `NEEDS_REVIEW`: a policy/evidence rejection (missing/ambiguous evidence or an unsafe existing target); resolve manually in a separately reviewed change.
 - `ERROR`: an execution failure while applying an otherwise eligible entry; inspect the result and rerun safely after review.
+
+`OBSERVE` and `PROPOSE` findings carry recommendations and no execution result. Every `APPLY` finding instead records whether a mutation was attempted and the observed result: success, failure, skipped without an attempt, or eligibility remaining unverified. Failed attempts also include a separately labeled recovery action.

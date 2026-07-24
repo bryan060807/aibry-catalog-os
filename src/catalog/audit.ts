@@ -2,6 +2,7 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { parseDocument } from "yaml";
 import type { CatalogDiscovery, ProjectFile } from "./types.js";
+import { resolveLyricSourceDesignation } from "../lyric-source-resolver.js";
 
 export type AuditSeverity = "info" | "warning" | "error";
 
@@ -37,7 +38,7 @@ export async function auditCatalog(discovery: CatalogDiscovery): Promise<Catalog
   addFrontDoorFindings(discovery, findings);
   addOrphanFindings(discovery, findings);
   addRelationshipFindings(discovery, frontMatters, findings);
-  addProvenanceFindings(discovery, frontMatters, findings);
+  await addProvenanceFindings(discovery, frontMatters, findings);
   await inspectMetadataFiles(discovery, findings);
 
   return {
@@ -110,9 +111,26 @@ function addRelationshipFindings(discovery: CatalogDiscovery, frontMatters: Map<
   }
 }
 
-function addProvenanceFindings(discovery: CatalogDiscovery, frontMatters: Map<string, FrontMatter>, findings: AuditFinding[]): void {
+async function addProvenanceFindings(discovery: CatalogDiscovery, frontMatters: Map<string, FrontMatter>, findings: AuditFinding[]): Promise<void> {
   for (const project of discovery.projectFiles) {
     const metadata = frontMatters.get(project.relativePath);
+    const provenance = metadata?.provenance;
+    const claimsLyricDesignation = isRecord(provenance) && provenance.contract === "lyric-source-designation.v1";
+    if (claimsLyricDesignation) {
+      const resolution = await resolveLyricSourceDesignation(discovery.vaultPath, project.path);
+      if (resolution.state !== "verified") {
+        findings.push(finding(
+          "provenance",
+          "info",
+          project.relativePath,
+          "Lyric source designation did not pass resolver verification",
+          resolution.failures.length > 0 ? resolution.failures : ["The designation contract is present but unresolved."],
+          "Correct the machine-readable designation or migration record through a reviewed change; do not infer or auto-approve provenance."
+        ));
+      }
+      continue;
+    }
+
     const declared = metadata && ["provenance", "source_path", "source_paths", "legacy_source"].some((key) => key in metadata);
     if (!declared) findings.push(finding("provenance", "info", project.relativePath, "No structured migration provenance declared", ["No recognized provenance field was found in YAML front matter."], "If this project was migrated, record verified source paths and review state in a future approved metadata update; do not infer provenance."));
   }

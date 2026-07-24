@@ -3,6 +3,7 @@ import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { discoverCatalog } from "./catalog/discover.js";
 import type { CatalogDiscovery, ManagedSong } from "./catalog/types.js";
+import { resolveLyricSourceDesignation, type LyricSourceResolution } from "./lyric-source-resolver.js";
 
 export type AssetCategory = "lyrics" | "audio" | "metadata" | "artwork" | "licensing" | "release-admin" | "other";
 export type AssetConfidence = "low" | "medium" | "high";
@@ -41,6 +42,7 @@ export type AssetInspection = {
   };
   projectPath: string;
   inspectedAt: string;
+  lyricSourceResolution: LyricSourceResolution;
   assets: AssetRecord[];
   folderStatus: {
     lyrics: FolderStatus;
@@ -130,14 +132,16 @@ export async function inspectSongAssets(vaultPath: string, song: ManagedSong): P
   }
 
   const sortedAssets = assets.sort((left, right) => compareText(left.path, right.path));
+  const lyricSourceResolution = await resolveLyricSourceDesignation(vaultPath, path.join(song.path, "project.md"));
   return {
     contract: "asset-inspection.v1",
     authority: assetInspectorAuthority(),
     projectPath: song.relativePath,
     inspectedAt,
+    lyricSourceResolution,
     assets: sortedAssets,
     folderStatus,
-    findings: buildFindings(sortedAssets, folderStatus),
+    findings: buildFindings(sortedAssets, folderStatus, lyricSourceResolution),
     warnings
   };
 }
@@ -237,38 +241,42 @@ function artworkRole(extension: string): string {
   return [".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(extension) ? "artwork-candidate" : "artwork-related-file";
 }
 
-function buildFindings(assets: AssetRecord[], folderStatus: AssetInspection["folderStatus"]): AssetInspectionFinding[] {
+function buildFindings(assets: AssetRecord[], folderStatus: AssetInspection["folderStatus"], lyricSourceResolution: LyricSourceResolution): AssetInspectionFinding[] {
   const findings: AssetInspectionFinding[] = [];
   const lyricCandidates = assets.filter((asset) => asset.category === "lyrics");
   const audioAssets = assets.filter((asset) => asset.category === "audio");
   const mediaInfoAssets = assets.filter((asset) => asset.category === "metadata" && asset.candidateRole === "media-info-record");
-  if (lyricCandidates.length === 0) {
+  if (lyricSourceResolution.state !== "verified") {
+    if (lyricCandidates.length === 0) {
+      findings.push({
+        type: "canonical-lyric-unresolved",
+        severity: "low",
+        status: "blocked-insufficient-evidence",
+        evidencePaths: lyricSourceResolution.evidencePaths,
+        requiredEvidence: ["verified source lyric path", "matching managed lyric copy", "verified migration record", "explicit human designation"],
+        summary: "No verified lyric-source designation was observed; canonical lyric remains unresolved."
+      });
+    } else {
+      findings.push({
+        type: "canonical-lyric-unresolved",
+        severity: "low",
+        status: "blocked-insufficient-evidence",
+        evidencePaths: [...new Set([...lyricCandidates.map((asset) => asset.path), ...lyricSourceResolution.evidencePaths])],
+        requiredEvidence: ["verified source lyric path", "matching managed lyric copy", "verified migration record", "explicit human designation"],
+        summary: "Lyric candidates were inventoried, but no lyric-source-designation.v1 contract passed resolver verification."
+      });
+    }
     findings.push({
-      type: "canonical-lyric-unresolved",
+      type: "provenance-insufficient",
       severity: "low",
       status: "blocked-insufficient-evidence",
-      evidencePaths: [],
-      requiredEvidence: ["verified source lyric path", "migration record or explicit human designation"],
-      summary: "No lyric candidate was observed; canonical lyric remains unresolved."
-    });
-  } else {
-    findings.push({
-      type: "canonical-lyric-unresolved",
-      severity: "low",
-      status: "blocked-insufficient-evidence",
-      evidencePaths: lyricCandidates.map((asset) => asset.path),
-      requiredEvidence: ["verified source lyric path", "migration record or explicit human designation"],
-      summary: "Lyric candidates were inventoried, but Asset Inspector does not declare a canonical lyric."
+      evidencePaths: lyricSourceResolution.evidencePaths,
+      requiredEvidence: ["verified source and managed paths", "current matching hashes", "matching migration record", "explicit human designation"],
+      summary: lyricSourceResolution.failures.length > 0
+        ? `Lyric source provenance did not pass resolver verification: ${lyricSourceResolution.failures.join("; ")}`
+        : "Lyric source provenance did not pass resolver verification."
     });
   }
-  findings.push({
-    type: "provenance-insufficient",
-    severity: "low",
-    status: "blocked-insufficient-evidence",
-    evidencePaths: [],
-    requiredEvidence: ["verified source paths", "migration record or explicit human designation"],
-    summary: "Asset Inspector cannot infer provenance from folder placement or filenames."
-  });
   if (folderStatus.releaseAdmin === "empty") {
     findings.push({
       type: "release-admin-empty",

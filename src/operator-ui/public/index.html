@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalog Operator Console</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">AIBRY Catalog OS</p>
+      <h1>Catalog Operator Console</h1>
+      <p class="subtitle">Loopback-only controls over governed ASOS Kernel workflows.</p>
+    </div>
+    <div class="safety-badge">NO LIVE APPLY</div>
+  </header>
+
+  <main>
+    <section class="pipeline" aria-labelledby="pipeline-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Governed pipeline</p>
+          <h2 id="pipeline-title">Operator progression</h2>
+        </div>
+        <p>Every stage stops at the authority boundary. The console never executes APPLY.</p>
+      </div>
+      <ol id="pipeline-steps">
+        <li data-stage="refresh"><span>1</span>Refresh<strong>Not started</strong></li>
+        <li data-stage="select"><span>2</span>Scout / select input<strong>Not started</strong></li>
+        <li data-stage="proposal"><span>3</span>Generate proposal<strong>Not started</strong></li>
+        <li data-stage="review"><span>4</span>Review<strong>Not started</strong></li>
+        <li data-stage="approve"><span>5</span>Approve<strong>Awaiting authorization</strong></li>
+        <li data-stage="fixture"><span>6</span>Compatibility fixture<strong>Not started</strong></li>
+        <li data-stage="build"><span>7</span>Build script<strong>Not started</strong></li>
+        <li data-stage="dryrun"><span>8</span>Dry run<strong>Not started</strong></li>
+        <li data-stage="handoff"><span>9</span>Handoff<strong>Not started</strong></li>
+        <li class="stop"><span>10</span>Stop before APPLY<strong>Required stop</strong></li>
+      </ol>
+    </section>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="status-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Runtime</p><h2 id="status-title">System Status</h2></div>
+          <button id="refresh-status" type="button">Refresh Status</button>
+        </div>
+        <dl id="status-grid" class="facts"></dl>
+        <div class="actions">
+          <button id="run-typecheck" type="button">Run Typecheck</button>
+          <button id="run-build" type="button">Run Build</button>
+        </div>
+        <div class="command-preview">
+          <span>Equivalent command</span>
+          <pre id="status-command">npm run typecheck</pre>
+          <button type="button" data-copy-target="status-command">Copy Command</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="registry-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Kernel contracts</p><h2 id="registry-title">Specialist Registry</h2></div>
+          <button id="refresh-registry" type="button">Refresh Registry</button>
+        </div>
+        <label>Specialist
+          <select id="specialist-select"></select>
+        </label>
+        <button id="view-specialist" type="button">View Specialist Details</button>
+        <div id="specialist-details" class="result compact"></div>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="refresh-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Stage 1</p><h2 id="refresh-title">Catalog Refresh</h2></div>
+        <span class="authority observe">ORCHESTRATE / READ-ONLY</span>
+      </div>
+      <p>The Music Vault root is fixed by the server and cannot be edited here.</p>
+      <dl class="facts"><div><dt>Vault</dt><dd id="refresh-vault">Loading…</dd></div></dl>
+      <div class="form-grid">
+        <label>Output artifact name
+          <input id="refresh-output" value="operator/refresh/read-only-refresh.json" autocomplete="off">
+        </label>
+        <label>Optional decisions artifact
+          <input id="refresh-decisions" placeholder="operator/decisions/review-decisions.json" autocomplete="off">
+        </label>
+      </div>
+      <button id="run-refresh" type="button">Run Read-Only Refresh</button>
+      <div class="command-preview">
+        <span>Equivalent command</span>
+        <pre id="refresh-command">Select inputs to preview.</pre>
+        <button type="button" data-copy-target="refresh-command">Copy Command</button>
+      </div>
+      <div id="refresh-result" class="result"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="scout-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Stage 2</p><h2 id="scout-title">Safe Pilot Batch Scout</h2></div>
+        <span class="authority observe">OBSERVE / READ-ONLY</span>
+      </div>
+      <p>Finds one deterministic two-to-four-track batch, seals its planning input, and stops before proposal generation.</p>
+      <div class="form-grid">
+        <label>Fresh refresh artifact beneath reports
+          <input id="scout-refresh" value="operator/refresh/read-only-refresh.json" autocomplete="off">
+        </label>
+        <label>Scout output directory beneath reports
+          <input id="scout-directory" value="operator/pilots/safe-pilot" autocomplete="off">
+        </label>
+        <label>Minimum tracks
+          <input id="scout-min-tracks" type="number" min="2" max="4" value="2">
+        </label>
+        <label>Maximum tracks
+          <input id="scout-max-tracks" type="number" min="2" max="4" value="4">
+        </label>
+      </div>
+      <button id="run-scout" type="button">Find Safe Pilot Batch</button>
+      <div class="command-preview">
+        <span>Equivalent command</span>
+        <pre id="scout-command">Select a fresh refresh artifact to preview.</pre>
+        <button type="button" data-copy-target="scout-command">Copy Command</button>
+      </div>
+      <div id="scout-result" class="result"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="pilot-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Stages 3–4</p><h2 id="pilot-title">Lyric-Source Pilot</h2></div>
+        <span class="authority propose">PROPOSE</span>
+      </div>
+      <div class="form-grid">
+        <label>Planning-input JSON beneath reports
+          <input id="planning-input" placeholder="pilot/input/lyric-source-planning-input.v1.json" autocomplete="off">
+        </label>
+        <label>Proposal output directory beneath reports
+          <input id="proposal-directory" value="operator/lyric-source/pilot" autocomplete="off">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="generate-proposal" type="button" disabled>Generate Proposal</button>
+        <button id="verify-proposal" type="button" disabled>Verify Proposal Artifact</button>
+      </div>
+      <div class="command-preview">
+        <span>Equivalent command</span>
+        <pre id="proposal-command">Select a planning input to preview.</pre>
+        <button type="button" data-copy-target="proposal-command">Copy Command</button>
+      </div>
+      <div class="authorization-banner">AWAITING HUMAN AUTHORIZATION</div>
+      <div id="proposal-result" class="result"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="approval-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Stage 5</p><h2 id="approval-title">Approval Review</h2></div>
+        <span class="authority decision">HUMAN DECISION</span>
+      </div>
+      <label>Verified proposal path
+        <input id="approval-proposal" placeholder="operator/lyric-source/pilot/lyric-source-designation-proposal.v1.json" autocomplete="off">
+      </label>
+      <div class="actions">
+        <button id="approve-proposal" type="button" disabled>Approve exact proposal</button>
+        <button id="reject-proposal" type="button" disabled>Reject</button>
+        <button id="defer-proposal" type="button" disabled>Defer</button>
+      </div>
+      <p class="note">A decision artifact binds to the exact proposal ID and SHA-256. Approval does not execute APPLY.</p>
+      <div id="approval-result" class="result"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="build-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Stages 6–8</p><h2 id="build-title">Build, Compatibility, and Handoff</h2></div>
+        <span class="authority observe">TEMPORARY MIRROR ONLY</span>
+      </div>
+      <h3>Reports-local compatibility fixture</h3>
+      <div class="form-grid three">
+        <label>Scout report path
+          <input id="fixture-scout-report" autocomplete="off">
+        </label>
+        <label>Planning input path
+          <input id="fixture-planning-input" autocomplete="off">
+        </label>
+        <label>Proposal path
+          <input id="fixture-proposal" autocomplete="off">
+        </label>
+        <label>Approved decision path
+          <input id="fixture-decision" autocomplete="off">
+        </label>
+        <label>Fixture output directory
+          <input id="fixture-output-directory" value="operator/lyric-source/pilot/compatibility-fixture" autocomplete="off">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="materialize-fixture" type="button" disabled>Build Compatibility Fixture</button>
+      </div>
+      <div class="command-preview">
+        <span>Equivalent command</span>
+        <pre id="fixture-command">Complete the governed inputs to preview.</pre>
+        <button type="button" data-copy-target="fixture-command">Copy Command</button>
+      </div>
+      <div id="fixture-result" class="result"></div>
+      <h3>Script, dry run, and handoff</h3>
+      <div class="form-grid three">
+        <label>Proposal path
+          <input id="build-proposal" autocomplete="off">
+        </label>
+        <label>Approved decision path
+          <input id="build-decision" autocomplete="off">
+        </label>
+        <label>Fixture Vault directory beneath reports
+          <input id="build-fixture" placeholder="operator/fixtures/pilot-vault" autocomplete="off">
+        </label>
+        <label>Build output directory
+          <input id="build-directory" value="operator/lyric-source/pilot/build" autocomplete="off">
+        </label>
+        <label>Independent dry-run output directory
+          <input id="dryrun-directory" value="operator/lyric-source/pilot/dry-run-check" autocomplete="off">
+        </label>
+        <label>Operator package manifest
+          <input id="handoff-manifest" autocomplete="off">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="build-script" type="button" disabled>Build Windows APPLY Script</button>
+        <button id="run-dryrun" type="button" disabled>Run Compatibility Dry Run</button>
+        <button id="build-handoff" type="button" disabled>Build Verified Handoff Package</button>
+      </div>
+      <div class="command-preview">
+        <span>Equivalent command</span>
+        <pre id="build-command">Complete the governed inputs to preview.</pre>
+        <button type="button" data-copy-target="build-command">Copy Command</button>
+      </div>
+      <div id="build-result" class="result"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="reports-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Persisted evidence</p><h2 id="reports-title">Reports Browser</h2></div>
+        <button id="refresh-reports" type="button">Refresh Reports</button>
+      </div>
+      <div class="report-layout">
+        <div class="report-list-wrap">
+          <table>
+            <thead><tr><th>Path</th><th>Contract</th><th>Size</th><th>Status</th></tr></thead>
+            <tbody id="reports-list"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="actions">
+            <button id="view-formatted" type="button" disabled>View formatted JSON</button>
+            <button id="view-raw" type="button" disabled>View raw JSON</button>
+            <button id="copy-report-path" type="button" disabled>Copy path</button>
+            <button id="verify-report" type="button" disabled>Verify artifact</button>
+            <label class="check"><input id="show-payload" type="checkbox">Show encoded payload</label>
+          </div>
+          <pre id="report-viewer" class="viewer">Select a report.</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="activity-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Server audit trail</p><h2 id="activity-title">Activity Log</h2></div>
+        <button id="refresh-activity" type="button">Refresh Activity</button>
+      </div>
+      <div id="activity-log" class="activity-list"></div>
+    </section>
+  </main>
+
+  <dialog id="approval-dialog">
+    <form method="dialog">
+      <p class="eyebrow">Exact proposal authorization</p>
+      <h2>Approve governed proposal</h2>
+      <dl id="approval-confirmation" class="facts"></dl>
+      <p>Approval creates a decision artifact bound to this exact proposal. It does not execute APPLY.</p>
+      <label>Type APPROVE exactly
+        <input id="approval-confirmation-input" autocomplete="off">
+      </label>
+      <div class="actions">
+        <button value="cancel">Cancel</button>
+        <button id="confirm-approval" value="approve">Create approval decision</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>Catalog Operator Console · 127.0.0.1 only · Stop before APPLY</footer>
+  <script src="/app.js"></script>
+</body>
+</html>

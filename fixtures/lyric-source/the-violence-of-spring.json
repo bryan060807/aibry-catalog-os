@@ -1,0 +1,16 @@
+{
+  "contract": "golden-lyric-source-migration-fixture.v1",
+  "batchId": "violence-of-spring-tracks-01-04",
+  "name": "The Violence of Spring",
+  "albumSlug": "the-violence-of-spring",
+  "generatedAt": "2026-07-22T18:37:16.000Z",
+  "tracks": [
+    { "slug": "01-vernal-fracture", "include": true },
+    { "slug": "02-the-optic-harvest", "include": true },
+    { "slug": "03-chemistry-of-collapse", "include": true },
+    { "slug": "04-gated-silence", "include": true },
+    { "slug": "05-cold-room-residue", "include": false, "exclusionReason": "Track 05 evidence changed after initial triage and requires a fresh candidate inventory." }
+  ],
+  "baseline": { "catalogFindings": 59, "assetFindings": 242, "blocksExistingProposal": 116 },
+  "expected": { "catalogFindings": 55, "assetFindings": 234, "blocksExistingProposal": 108 }
+}

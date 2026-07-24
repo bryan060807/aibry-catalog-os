@@ -18,6 +18,7 @@ import { buildReviewInboxFromIndexPath } from "./review-inbox.js";
 import { renderDiscoveryReport } from "./reports/discovery-report.js";
 import { renderAuditReport } from "./reports/audit-report.js";
 import { renderAdmissionReport } from "./reports/admission-report.js";
+import { handleFrameworkCommand } from "./framework-cli.js";
 
 type CatalogCommand = "discover" | "audit" | "admit" | "publish" | "contract" | "inspect-assets" | "workflow" | "serve" | "review-inbox" | "operation-journal" | "validate-operations";
 type WorkflowName = "read-only-refresh";
@@ -77,8 +78,8 @@ function parseCatalogArguments(argv: string[]): CatalogArguments {
     if (!parsed.values.vault || !parsed.values.output) {
       throw new Error(`--vault and --output are required for catalog workflow read-only-refresh.\n\n${usage()}`);
     }
-    if (parsed.values.index || parsed.values.inbox || parsed.values.journal || parsed.values.results || parsed.values.decisions || parsed.values.host || parsed.values.port || parsed.values.apply || parsed.values.observe || parsed.values["dry-run"]) {
-      throw new Error(`catalog workflow read-only-refresh accepts --vault and --output only.\n\n${usage()}`);
+    if (parsed.values.index || parsed.values.inbox || parsed.values.journal || parsed.values.results || parsed.values.host || parsed.values.port || parsed.values.apply || parsed.values.observe || parsed.values["dry-run"]) {
+      throw new Error(`catalog workflow read-only-refresh accepts --vault, --output, and optional --decisions only.\n\n${usage()}`);
     }
     return {
       command,
@@ -89,7 +90,7 @@ function parseCatalogArguments(argv: string[]): CatalogArguments {
       inbox: null,
       journal: null,
       results: null,
-      decisions: null,
+      decisions: parsed.values.decisions ?? null,
       host: null,
       port: null,
       admissionMode: "PROPOSE"
@@ -220,7 +221,8 @@ function usage(): string {
     "  catalog contract --vault <path> --output <path>",
     "  catalog publish --vault <path> --output <path>",
     "  catalog inspect-assets --vault <path> --output <path>",
-    "  catalog workflow read-only-refresh --vault <path> --output <path>",
+    "  catalog workflow read-only-refresh --vault <path> --output <path> [--decisions <path>]",
+
     "  catalog serve --index <path> [--host 127.0.0.1] [--port 3873]",
     "  catalog review-inbox --index <path> --output <path> [--decisions <path>]",
     "  catalog operation-journal --inbox <path> --output <path>",
@@ -232,10 +234,13 @@ function usage(): string {
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  if (await handleFrameworkCommand(argv)) {
+    return;
+  }
   const args = parseCatalogArguments(argv);
 
   if (args.command === "workflow") {
-    const summary = await runReadOnlyRefreshWorkflow(args.vault ?? "", args.output ?? "");
+    const summary = await runReadOnlyRefreshWorkflow(args.vault ?? "", args.output ?? "", args.decisions ?? undefined);
     process.stdout.write(`Workflow ${summary.workflow} written to ${path.resolve(args.output ?? "")}\n`);
     return;
   }

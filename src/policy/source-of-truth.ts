@@ -65,6 +65,28 @@ export async function assertOutputOutsideVault(vaultPath: string, outputPath: st
   return lexicalOutput;
 }
 
+export async function assertOperationalInputOutsideVault(vaultPath: string, inputPath: string, label: string): Promise<string> {
+  if (inputPath.trim() === "") {
+    throw new Error(`${label} path must not be empty.`);
+  }
+
+  const resolvedVault = await realpath(path.resolve(vaultPath));
+  const lexicalInput = path.resolve(inputPath);
+  const inputStat = await lstat(lexicalInput);
+  if (inputStat.isSymbolicLink()) {
+    throw new Error(`Refusing to use ${label} through a symbolic link: ${lexicalInput}`);
+  }
+  if (!inputStat.isFile()) {
+    throw new Error(`${label} path is not a file: ${lexicalInput}`);
+  }
+
+  const canonicalInput = await realpath(lexicalInput);
+  if (isInsideOrEqual(resolvedVault, canonicalInput)) {
+    throw new Error(`Refusing to use ${label} inside the vault: ${lexicalInput}`);
+  }
+  return lexicalInput;
+}
+
 export async function assertPathHasNoAliases(
   rootPath: string,
   targetPath: string,

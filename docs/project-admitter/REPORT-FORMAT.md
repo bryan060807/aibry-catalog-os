@@ -7,7 +7,8 @@ Each finding includes:
 - `Status`;
 - `Subject`;
 - one or more `Evidence` lines, including the target path;
-- `Recommendation` when no action completed or recovery is required; and
-- `Result` for an applied action or execution error.
+- `Recommendation` only in `OBSERVE` and `PROPOSE` reports;
+- `Attempted` and `Result` in `APPLY` reports; and
+- `Recovery` when an attempted mutation failed.
 
-`WOULD_ADMIT` means eligible but not written. `ADMITTED` means the exclusive new `project.md` creation succeeded and was verified; it records the result and does not retain the proposal-only recommendation. `NEEDS_REVIEW` is a policy/evidence rejection and never triggers a mutation. `ERROR` is an execution failure and is distinct from policy review. The mutation record lists every successful vault mutation, and the report is finalized after partial failures.
+`WOULD_ADMIT` means eligible but not written. `ADMITTED` means the exclusive new `project.md` creation was attempted, succeeded, and was verified. In `APPLY`, `SKIPPED` explicitly records that no mutation was attempted, while `NEEDS_REVIEW` records that eligibility remained unverified and no mutation was attempted. `ERROR` records an attempted mutation that failed and is distinct from policy review. APPLY findings do not retain proposal recommendations. The execution summary distinguishes attempted, succeeded, failed, skipped, and unverified entries; the mutation record lists every successful vault mutation, and the report is finalized after partial failures.

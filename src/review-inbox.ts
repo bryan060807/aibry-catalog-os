@@ -51,7 +51,10 @@ export type ReviewInbox = {
 
 export async function buildReviewInboxFromIndexPath(indexPath: string, decisionsPath?: string): Promise<ReviewInbox> {
   const index = await loadCatalogIndex(indexPath);
-  const decisions = decisionsPath ? await loadReviewDecisions(decisionsPath) : new Map<string, ReviewDecisionState>();
+  const validProposalIds = new Set(index.findings.map((finding) => proposalIdForFinding(finding.findingId)));
+  const decisions = decisionsPath
+    ? await loadReviewDecisions(decisionsPath, validProposalIds)
+    : new Map<string, ReviewDecisionState>();
   return buildReviewInbox(index, decisions);
 }
 
@@ -114,18 +117,43 @@ function countStates(proposals: ReviewProposal[]): Omit<ReviewInbox["counts"], "
   }, { pending: 0, approved: 0, rejected: 0, deferred: 0 });
 }
 
-async function loadReviewDecisions(decisionsPath: string): Promise<Map<string, ReviewDecisionState>> {
+async function loadReviewDecisions(decisionsPath: string, validProposalIds: ReadonlySet<string>): Promise<Map<string, ReviewDecisionState>> {
   const parsed = JSON.parse(await readFile(decisionsPath, "utf8")) as unknown;
   if (!Array.isArray(parsed)) {
     throw new Error(`Review decisions file must be a JSON array: ${decisionsPath}`);
   }
+
   const decisions = new Map<string, ReviewDecisionState>();
+  const duplicateProposalIds = new Set<string>();
+  const staleProposalIds = new Set<string>();
+
   for (const entry of parsed) {
     if (!isRecord(entry) || typeof entry.proposalId !== "string" || !isReviewDecisionState(entry.state)) {
       throw new Error(`Review decisions file contains an invalid decision entry: ${decisionsPath}`);
     }
+
+    if (decisions.has(entry.proposalId)) {
+      duplicateProposalIds.add(entry.proposalId);
+      continue;
+    }
+
     decisions.set(entry.proposalId, entry.state);
+    if (!validProposalIds.has(entry.proposalId)) {
+      staleProposalIds.add(entry.proposalId);
+    }
   }
+
+  const validationErrors: string[] = [];
+  if (duplicateProposalIds.size > 0) {
+    validationErrors.push(`duplicate proposal IDs: ${[...duplicateProposalIds].sort().join(", ")}`);
+  }
+  if (staleProposalIds.size > 0) {
+    validationErrors.push(`unknown or stale proposal IDs: ${[...staleProposalIds].sort().join(", ")}`);
+  }
+  if (validationErrors.length > 0) {
+    throw new Error(`Review decisions file failed validation (${validationErrors.join("; ")}): ${decisionsPath}`);
+  }
+
   return decisions;
 }
 

@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { AdmissionReport } from "../src/catalog/admit.js";
 import { main } from "../src/cli.js";
+import { renderAdmissionReport } from "../src/reports/admission-report.js";
 
 test("project admit defaults to PROPOSE and reports only unambiguous candidates as WOULD_ADMIT", async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "catalog-admit-"));
@@ -38,8 +40,28 @@ test("project admit defaults to PROPOSE and reports only unambiguous candidates 
     assert.match(report, /- Subject: `project-memory[\\/]music[\\/]singles[\\/]Eligible Song`/);
     assert.match(report, /- Recommendation: Review this proposal\./);
     assert.doesNotMatch(report, /- Result:/);
+    assert.doesNotMatch(report, /## Execution Summary/);
     assert.match(report, /NEEDS_REVIEW — `project-memory[\\/]music[\\/]singles[\\/]Ambiguous Song`/);
     assert.match(report, /SKIPPED — `project-memory[\\/]music[\\/]singles[\\/]Existing Song`/);
+  } finally { await rm(workspace, { recursive: true, force: true }); }
+});
+
+test("project admit keeps --dry-run as proposal-only behavior", async () => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "catalog-admit-"));
+  const vault = path.join(workspace, "vault");
+  const output = path.join(workspace, "admission.md");
+  const eligible = path.join(vault, "project-memory", "music", "singles", "Dry Run Song");
+  try {
+    await setupVault(vault);
+    await mkdir(path.join(eligible, "lyrics"), { recursive: true });
+    await writeFile(path.join(eligible, "lyrics", "dry-run.md"), "# Lyric\n", "utf8");
+
+    await main(["catalog", "admit", "--vault", vault, "--output", output, "--dry-run"]);
+    const report = await readFile(output, "utf8");
+    assert.match(report, /Mode: PROPOSE/);
+    assert.match(report, /- Recommendation: Review this proposal\./);
+    assert.doesNotMatch(report, /- Attempted:|- Result:|## Execution Summary/);
+    await assert.rejects(() => stat(path.join(eligible, "project.md")), { code: "ENOENT" });
   } finally { await rm(workspace, { recursive: true, force: true }); }
 });
 
@@ -118,12 +140,16 @@ test("project admit apply creates only the eligible missing front door and never
   const vault = path.join(workspace, "vault");
   const output = path.join(workspace, "admission.md");
   const eligible = path.join(vault, "project-memory", "music", "singles", "Eligible Song");
+  const ambiguous = path.join(vault, "project-memory", "music", "singles", "Ambiguous Song");
   const existing = path.join(vault, "project-memory", "music", "singles", "Existing Song");
   try {
     await setupVault(vault);
     await mkdir(path.join(eligible, "lyrics"), { recursive: true });
+    await mkdir(path.join(ambiguous, "lyrics"), { recursive: true });
     await mkdir(existing, { recursive: true });
     await writeFile(path.join(eligible, "lyrics", "eligible.md"), "# Lyric\n", "utf8");
+    await writeFile(path.join(ambiguous, "lyrics", "one.md"), "# One\n", "utf8");
+    await writeFile(path.join(ambiguous, "lyrics", "two.md"), "# Two\n", "utf8");
     await writeFile(path.join(existing, "project.md"), "# Preserve Me\n", "utf8");
 
     await main(["catalog", "admit", "--vault", vault, "--output", output, "--apply"]);
@@ -135,19 +161,69 @@ test("project admit apply creates only the eligible missing front door and never
     assert.match(report, /Mode: APPLY/);
     assert.match(report, /- WOULD_ADMIT: 0/);
     assert.match(report, /- ADMITTED: 1/);
+    assert.match(report, /- SKIPPED: 1/);
+    assert.match(report, /- NEEDS_REVIEW: 1/);
     assert.match(report, /- ERROR: 0/);
+    assert.match(report, /## Execution Summary/);
+    assert.match(report, /- Attempted: 1/);
+    assert.match(report, /- Succeeded: 1/);
+    assert.match(report, /- Failed: 0/);
+    assert.match(report, /- Skipped without attempt: 1/);
+    assert.match(report, /- Remained unverified: 1/);
     assert.match(report, /ADMITTED — `project-memory[\\/]music[\\/]singles[\\/]Eligible Song`/);
-    assert.match(report, /- Result: Created and verified a new direct regular project\.md file\./);
+    assert.match(report, /- Attempted: Yes/);
+    assert.match(report, /- Result: Succeeded: created and verified a new direct regular project\.md file\./);
     assert.doesNotMatch(report, /- Recommendation: Review this proposal\./);
     const admittedFinding = report.match(/### ADMITTED[\s\S]*?(?=\n### |\n## Mutation Record)/)?.[0];
     assert.ok(admittedFinding);
     assert.doesNotMatch(admittedFinding, /- Recommendation:/);
+    const skippedFinding = report.match(/### SKIPPED[\s\S]*?(?=\n### |\n## Mutation Record)/)?.[0];
+    assert.ok(skippedFinding);
+    assert.match(skippedFinding, /- Attempted: No/);
+    assert.match(skippedFinding, /- Result: Skipped: no mutation was attempted/);
+    const unverifiedFinding = report.match(/### NEEDS_REVIEW[\s\S]*?(?=\n### |\n## Mutation Record)/)?.[0];
+    assert.ok(unverifiedFinding);
+    assert.match(unverifiedFinding, /- Attempted: No/);
+    assert.match(unverifiedFinding, /- Result: Unverified: no mutation was attempted/);
+    assert.doesNotMatch(report, /- Recommendation:/);
     assert.match(report, /Created and verified: `project-memory[\\/]music[\\/]singles[\\/]Eligible Song[\\/]project\.md`/);
     assert.match(report, /This final report includes successful mutations and any execution errors/);
 
     await main(["catalog", "admit", "--vault", vault, "--output", output]);
     assert.match(await readFile(output, "utf8"), /SKIPPED — `project-memory[\\/]music[\\/]singles[\\/]Eligible Song`/);
   } finally { await rm(workspace, { recursive: true, force: true }); }
+});
+
+test("project admit APPLY rendering labels attempted failures and recovery separately", () => {
+  const report: AdmissionReport = {
+    vaultPath: "fixture-vault",
+    specialist: "Project Admitter",
+    specialistVersion: "v2",
+    operationalStandardVersion: "ASOS v1",
+    runId: "00000000-0000-4000-8000-000000000000",
+    mode: "APPLY",
+    started: "2026-07-21T00:00:00.000Z",
+    completed: "2026-07-21T00:00:01.000Z",
+    durationMs: 1000,
+    entries: [{
+      status: "ERROR",
+      attempted: true,
+      relativePath: "project-memory/music/singles/Failed Song",
+      projectRelativePath: "project-memory/music/singles/Failed Song/project.md",
+      evidence: ["Selected lyric source: lyrics/singles/Failed Song.md"],
+      result: "Failed: creation was attempted, but no admission was confirmed: simulated exclusive-write failure",
+      recovery: "Inspect the target state before retrying."
+    }],
+    safeguards: []
+  };
+
+  const rendered = renderAdmissionReport(report);
+  assert.match(rendered, /- Attempted: 1/);
+  assert.match(rendered, /- Failed: 1/);
+  assert.match(rendered, /- Attempted: Yes/);
+  assert.match(rendered, /- Result: Failed: creation was attempted/);
+  assert.match(rendered, /- Recovery: Inspect the target state before retrying\./);
+  assert.doesNotMatch(rendered, /- Recommendation:/);
 });
 
 async function setupVault(vault: string): Promise<void> {

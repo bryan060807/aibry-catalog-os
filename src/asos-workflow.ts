@@ -5,8 +5,8 @@ import { inspectCatalogAssets, type AssetInspectionFinding, type AssetInspection
 import { renderManagedSongContractJson } from "./catalog/contract.js";
 import { publishCatalogIndex, type CatalogIndex } from "./catalog/publish.js";
 import { buildOperationJournal, type OperationJournal } from "./operation-journal.js";
-import { assertOutputOutsideVault, assertVaultDirectory } from "./policy/source-of-truth.js";
-import { buildReviewInbox, type ReviewInbox } from "./review-inbox.js";
+import { assertOperationalInputOutsideVault, assertOutputOutsideVault, assertVaultDirectory } from "./policy/source-of-truth.js";
+import { buildReviewInboxFromIndexPath, type ReviewInbox } from "./review-inbox.js";
 
 export type FindingRoute = "evidence-only" | "reviewable" | "blocks-existing-proposal" | "eligible-for-proposal";
 
@@ -15,15 +15,47 @@ export type RoutedFindingSummary = {
   count: number;
 };
 
+export type RoutedAssetFinding = {
+  projectPath: string;
+  findingType: AssetInspectionFinding["type"];
+  route: FindingRoute;
+  routingRule: "asos-finding-routing.v1";
+  evidencePaths: string[];
+  reason: string;
+};
+
+export type AssetFindingRoutesArtifact = {
+  contract: "asset-finding-routes.v1";
+  generatedAt: string;
+  authority: {
+    system: "AIBRY Catalog OS";
+    specialist: "ASOS Kernel / Workflow Orchestrator";
+    authorityMode: "ORCHESTRATE";
+    operationalStandard: "ASOS v1 / AVC v1";
+    sourceOfTruth: "Music Vault";
+    vaultMutation: "none";
+  };
+  source: {
+    assetInspectionContract: AssetInspectionReport["contract"];
+    assetInspectionGeneratedAt: string;
+    assetInspectionSha256: string;
+  };
+  counts: RoutedFindingSummary[];
+  routes: RoutedAssetFinding[];
+};
+
 export type WorkflowArtifact = {
-  name: "contract" | "catalog-index" | "asset-inspection" | "review-inbox" | "operation-journal";
+  name: "review-decisions" | "contract" | "catalog-index" | "asset-inspection" | "asset-finding-routes" | "review-inbox" | "operation-journal";
+  role: "input" | "output";
   path: string;
   sha256: string;
   contract: string;
 };
 
+type GeneratedWorkflowArtifactName = Exclude<WorkflowArtifact["name"], "review-decisions">;
+
 export type WorkflowStep = {
-  name: WorkflowArtifact["name"] | "finding-router";
+  name: GeneratedWorkflowArtifactName | "finding-router";
   authorityMode: string;
   status: "completed" | "blocked";
   inputArtifacts: string[];
@@ -32,7 +64,7 @@ export type WorkflowStep = {
 };
 
 export type ReadOnlyRefreshWorkflowSummary = {
-  contract: "asos-workflow-read-only-refresh.v1";
+  contract: "asos-workflow-read-only-refresh.v1.1";
   workflow: "read-only-refresh";
   runId: string;
   generatedAt: string;
@@ -47,8 +79,9 @@ export type ReadOnlyRefreshWorkflowSummary = {
   source: {
     vaultPath: string;
     outputDirectory: string;
+    decisionsPath: string | null;
   };
-  reviewStateMode: "fresh-unreviewed-snapshot";
+  reviewStateMode: "fresh-unreviewed-snapshot" | "preserved-decisions";
   artifacts: WorkflowArtifact[];
   steps: WorkflowStep[];
   counts: {
@@ -60,6 +93,7 @@ export type ReadOnlyRefreshWorkflowSummary = {
     assetFindings: number;
     reviewPending: number;
     reviewApproved: number;
+    reviewRejected: number;
     reviewDeferred: number;
     pendingApply: number;
     blockedInsufficientEvidence: number;
@@ -69,14 +103,18 @@ export type ReadOnlyRefreshWorkflowSummary = {
     applyEnabled: false;
     vaultMutation: "none";
     reviewInboxIntegration: "catalog-findings-only";
-    assetFindingPolicy: "routed-for-kernel-context-not-direct-inbox";
+    assetFindingPolicy: "routed-outside-inbox-unless-eligible-for-proposal";
   };
 };
 
-export async function runReadOnlyRefreshWorkflow(vaultInput: string, outputInput: string): Promise<ReadOnlyRefreshWorkflowSummary> {
+export async function runReadOnlyRefreshWorkflow(vaultInput: string, outputInput: string, decisionsInput?: string): Promise<ReadOnlyRefreshWorkflowSummary> {
   const vaultPath = await assertVaultDirectory(vaultInput);
   const outputPath = await assertOutputOutsideVault(vaultPath, outputInput);
   const outputDirectory = path.dirname(outputPath);
+  const decisionsPath = decisionsInput
+    ? await assertOperationalInputOutsideVault(vaultPath, decisionsInput, "review decisions")
+    : null;
+  const reviewStateMode = decisionsPath ? "preserved-decisions" as const : "fresh-unreviewed-snapshot" as const;
   const runId = runIdFromDate(new Date());
   const baseName = path.basename(outputPath, path.extname(outputPath));
   await mkdir(outputDirectory, { recursive: true });
@@ -84,6 +122,7 @@ export async function runReadOnlyRefreshWorkflow(vaultInput: string, outputInput
   const contractPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "contract");
   const catalogIndexPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "catalog-index");
   const assetInspectionPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "asset-inspection");
+  const assetFindingRoutesPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "asset-finding-routes");
   const reviewInboxPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "review-inbox");
   const operationJournalPath = await workflowArtifactPath(vaultPath, outputDirectory, baseName, "operation-journal");
 
@@ -95,42 +134,50 @@ export async function runReadOnlyRefreshWorkflow(vaultInput: string, outputInput
 
   const assetInspection = await inspectCatalogAssets(vaultPath);
   await writeJson(assetInspectionPath, assetInspection);
+  const assetInspectionSha256 = await hashFile(assetInspectionPath);
 
-  const reviewInbox = buildReviewInbox(catalogIndex);
+  const routedAssetFindings = routeAssetFindings(assetInspection);
+  const findingRoutes = summarizeFindingRoutes(routedAssetFindings);
+  const assetFindingRoutes = buildAssetFindingRoutesArtifact(assetInspection, assetInspectionSha256, routedAssetFindings, findingRoutes);
+  await writeJson(assetFindingRoutesPath, assetFindingRoutes);
+
+  const reviewInbox = await buildReviewInboxFromIndexPath(catalogIndexPath, decisionsPath ?? undefined);
   await writeJson(reviewInboxPath, reviewInbox);
 
   const operationJournal = buildOperationJournal(reviewInbox);
   await writeJson(operationJournalPath, operationJournal);
 
   const artifacts: WorkflowArtifact[] = [
-    await artifact("contract", contractPath, "managed-song-contract.v1"),
-    await artifact("catalog-index", catalogIndexPath, catalogIndex.schemaVersion),
-    await artifact("asset-inspection", assetInspectionPath, assetInspection.contract),
-    await artifact("review-inbox", reviewInboxPath, reviewInbox.schemaVersion),
-    await artifact("operation-journal", operationJournalPath, operationJournal.schemaVersion)
+    ...(decisionsPath ? [await artifact("review-decisions", decisionsPath, "review-decisions.v1", "input")] : []),
+    await artifact("contract", contractPath, "managed-song-contract.v1", "output"),
+    await artifact("catalog-index", catalogIndexPath, catalogIndex.schemaVersion, "output"),
+    await artifact("asset-inspection", assetInspectionPath, assetInspection.contract, "output"),
+    await artifact("asset-finding-routes", assetFindingRoutesPath, assetFindingRoutes.contract, "output"),
+    await artifact("review-inbox", reviewInboxPath, reviewInbox.schemaVersion, "output"),
+    await artifact("operation-journal", operationJournalPath, operationJournal.schemaVersion, "output")
   ];
 
-  const findingRoutes = routeAssetFindings(assetInspection);
   const summary: ReadOnlyRefreshWorkflowSummary = {
-    contract: "asos-workflow-read-only-refresh.v1",
+    contract: "asos-workflow-read-only-refresh.v1.1",
     workflow: "read-only-refresh",
     runId,
     generatedAt: new Date().toISOString(),
     authority: workflowAuthority(),
     source: {
       vaultPath,
-      outputDirectory
+      outputDirectory,
+      decisionsPath
     },
-    reviewStateMode: "fresh-unreviewed-snapshot",
+    reviewStateMode,
     artifacts,
-    steps: workflowSteps(artifacts, findingRoutes),
+    steps: workflowSteps(artifacts, findingRoutes, reviewStateMode),
     counts: workflowCounts(catalogIndex, assetInspection, reviewInbox, operationJournal),
     findingRoutes,
     safety: {
       applyEnabled: false,
       vaultMutation: "none",
       reviewInboxIntegration: "catalog-findings-only",
-      assetFindingPolicy: "routed-for-kernel-context-not-direct-inbox"
+      assetFindingPolicy: "routed-outside-inbox-unless-eligible-for-proposal"
     }
   };
   await writeJson(outputPath, summary);
@@ -162,31 +209,73 @@ function workflowCounts(catalogIndex: CatalogIndex, assetInspection: AssetInspec
     assetFindings: assetInspection.counts.findings,
     reviewPending: reviewInbox.counts.pending,
     reviewApproved: reviewInbox.counts.approved,
+    reviewRejected: reviewInbox.counts.rejected,
     reviewDeferred: reviewInbox.counts.deferred,
     pendingApply: operationJournal.counts.pendingApply,
     blockedInsufficientEvidence: operationJournal.counts.blockedInsufficientEvidence
   };
 }
 
-function routeAssetFindings(report: AssetInspectionReport): RoutedFindingSummary[] {
+function routeAssetFindings(report: AssetInspectionReport): RoutedAssetFinding[] {
+  return report.inspections.flatMap((inspection) => inspection.findings.map((finding) => ({
+    projectPath: inspection.projectPath,
+    findingType: finding.type,
+    route: routeAssetInspectionFinding(finding),
+    routingRule: "asos-finding-routing.v1" as const,
+    evidencePaths: finding.evidencePaths,
+    reason: routingReason(finding)
+  })));
+}
+
+function summarizeFindingRoutes(routes: RoutedAssetFinding[]): RoutedFindingSummary[] {
   const counts = new Map<FindingRoute, number>([
     ["evidence-only", 0],
     ["reviewable", 0],
     ["blocks-existing-proposal", 0],
     ["eligible-for-proposal", 0]
   ]);
-  for (const inspection of report.inspections) {
-    for (const finding of inspection.findings) {
-      const route = routeAssetInspectionFinding(finding);
-      counts.set(route, (counts.get(route) ?? 0) + 1);
-    }
+  for (const finding of routes) {
+    counts.set(finding.route, (counts.get(finding.route) ?? 0) + 1);
   }
   return [...counts.entries()].map(([route, count]) => ({ route, count }));
 }
 
-function workflowSteps(artifacts: WorkflowArtifact[], routes: RoutedFindingSummary[]): WorkflowStep[] {
+function buildAssetFindingRoutesArtifact(assetInspection: AssetInspectionReport, assetInspectionSha256: string, routes: RoutedAssetFinding[], counts: RoutedFindingSummary[]): AssetFindingRoutesArtifact {
+  return {
+    contract: "asset-finding-routes.v1",
+    generatedAt: new Date().toISOString(),
+    authority: workflowAuthority(),
+    source: {
+      assetInspectionContract: assetInspection.contract,
+      assetInspectionGeneratedAt: assetInspection.generatedAt,
+      assetInspectionSha256
+    },
+    counts,
+    routes
+  };
+}
+
+function routingReason(finding: AssetInspectionFinding): string {
+  switch (finding.type) {
+    case "media-info-audio-evidence":
+      return "Media-info is supporting evidence only and cannot establish a canonical audio asset.";
+    case "release-admin-empty":
+      return "An empty release-admin folder is context only and does not justify a proposal.";
+    case "canonical-lyric-unresolved":
+      return "Canonical lyric evidence is unresolved, so related promotion remains blocked pending verified source evidence.";
+    case "provenance-insufficient":
+      return "Provenance evidence is insufficient, so related promotion remains blocked pending verified source paths or human designation.";
+    case "multiple-audio-variants":
+      return "Multiple audio variants require human review and explicit master designation before any proposal can become eligible.";
+    default:
+      return "The finding is retained as kernel routing context and is not eligible for direct Review Inbox promotion.";
+  }
+}
+
+function workflowSteps(artifacts: WorkflowArtifact[], routes: RoutedFindingSummary[], reviewStateMode: ReadOnlyRefreshWorkflowSummary["reviewStateMode"]): WorkflowStep[] {
   const artifactPath = (name: WorkflowArtifact["name"]) => artifacts.find((artifactItem) => artifactItem.name === name)?.path ?? "";
   const routedCount = routes.reduce((total, route) => total + route.count, 0);
+  const decisionsPath = artifactPath("review-decisions");
   return [
     {
       name: "contract",
@@ -217,16 +306,18 @@ function workflowSteps(artifacts: WorkflowArtifact[], routes: RoutedFindingSumma
       authorityMode: "ORCHESTRATE",
       status: "completed",
       inputArtifacts: [artifactPath("asset-inspection")],
-      outputArtifacts: [],
-      notes: [`Kernel routed ${routedCount} asset findings for context; asset findings are not direct Review Inbox proposals in v1.`]
+      outputArtifacts: [artifactPath("asset-finding-routes")],
+      notes: [`Kernel routed ${routedCount} asset findings into a hashed lineage artifact; only eligible-for-proposal findings may enter Review Inbox.`]
     },
     {
       name: "review-inbox",
       authorityMode: "PROPOSE",
       status: "completed",
-      inputArtifacts: [artifactPath("catalog-index")],
+      inputArtifacts: [artifactPath("catalog-index"), decisionsPath].filter((value) => value.length > 0),
       outputArtifacts: [artifactPath("review-inbox")],
-      notes: ["Review Inbox was generated from catalog findings only as a fresh unreviewed snapshot; Asset Inspector findings remain routed context."]
+      notes: [reviewStateMode === "preserved-decisions"
+        ? "Review Inbox preserved approved, rejected, deferred, and pending states from the hashed decisions input; non-eligible Asset Inspector findings remained routed context."
+        : "Review Inbox was generated from catalog findings only as a fresh unreviewed snapshot; non-eligible Asset Inspector findings remained routed context."]
     },
     {
       name: "operation-journal",
@@ -239,12 +330,12 @@ function workflowSteps(artifacts: WorkflowArtifact[], routes: RoutedFindingSumma
   ];
 }
 
-async function workflowArtifactPath(vaultPath: string, outputDirectory: string, baseName: string, artifactName: WorkflowArtifact["name"]): Promise<string> {
+async function workflowArtifactPath(vaultPath: string, outputDirectory: string, baseName: string, artifactName: GeneratedWorkflowArtifactName): Promise<string> {
   return assertOutputOutsideVault(vaultPath, path.join(outputDirectory, `${baseName}.${artifactName}.json`));
 }
 
-async function artifact(name: WorkflowArtifact["name"], artifactPath: string, contract: string): Promise<WorkflowArtifact> {
-  return { name, path: artifactPath, sha256: await hashFile(artifactPath), contract };
+async function artifact(name: WorkflowArtifact["name"], artifactPath: string, contract: string, role: WorkflowArtifact["role"]): Promise<WorkflowArtifact> {
+  return { name, role, path: artifactPath, sha256: await hashFile(artifactPath), contract };
 }
 
 async function hashFile(filePath: string): Promise<string> {

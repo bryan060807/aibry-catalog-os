@@ -17,26 +17,51 @@ type AdmissionEvidence = {
 type ProposedAdmissionEntry = AdmissionEvidence & {
   status: "WOULD_ADMIT";
   recommendation: string;
+  attempted?: never;
+  recovery?: never;
   result?: never;
+};
+
+type ReviewedAdmissionEntry = AdmissionEvidence & {
+  status: "SKIPPED" | "NEEDS_REVIEW";
+  recommendation: string;
+  attempted?: never;
+  recovery?: never;
+  result?: never;
+};
+
+type AssessedAdmissionEntry = ProposedAdmissionEntry | ReviewedAdmissionEntry;
+
+type SuccessfulAdmissionEntry = AdmissionEvidence & {
+  status: "ADMITTED";
+  attempted: true;
+  recommendation?: never;
+  recovery?: never;
+  result: string;
+};
+
+type FailedAdmissionEntry = AdmissionEvidence & {
+  status: "ERROR";
+  attempted: true;
+  recommendation?: never;
+  recovery: string;
+  result: string;
+};
+
+type NotAttemptedAdmissionEntry = AdmissionEvidence & {
+  status: "SKIPPED" | "NEEDS_REVIEW";
+  attempted: false;
+  recommendation?: never;
+  recovery?: never;
+  result: string;
 };
 
 export type AdmissionEntry =
   | ProposedAdmissionEntry
-  | AdmissionEvidence & {
-      status: "SKIPPED" | "NEEDS_REVIEW";
-      recommendation: string;
-      result?: never;
-    }
-  | AdmissionEvidence & {
-      status: "ADMITTED";
-      recommendation?: never;
-      result: string;
-    }
-  | AdmissionEvidence & {
-      status: "ERROR";
-      recommendation: string;
-      result: string;
-    };
+  | ReviewedAdmissionEntry
+  | SuccessfulAdmissionEntry
+  | FailedAdmissionEntry
+  | NotAttemptedAdmissionEntry;
 
 export type AdmissionReport = {
   vaultPath: string;
@@ -60,11 +85,11 @@ export type AdmissionReport = {
 export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PROPOSE"): Promise<AdmissionReport> {
   const startedAt = new Date();
   const discovery = await discoverCatalog(vaultPath);
-  let entries: AdmissionEntry[] = [];
+  const assessedEntries: AssessedAdmissionEntry[] = [];
 
-  for (const song of discovery.managedSongs) entries.push(skipped(song));
+  for (const song of discovery.managedSongs) assessedEntries.push(skipped(song));
   for (const placeholder of discovery.placeholders) {
-    entries.push({
+    assessedEntries.push({
       status: "SKIPPED",
       relativePath: placeholder.relativePath,
       projectRelativePath: path.join(placeholder.relativePath, "project.md"),
@@ -73,14 +98,15 @@ export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PR
     });
   }
   for (const candidate of discovery.provisionalSongCandidates) {
-    entries.push(await assessCandidate(candidate, discovery.vaultPath));
+    assessedEntries.push(await assessCandidate(candidate, discovery.vaultPath));
   }
 
+  let entries: AdmissionEntry[] = assessedEntries;
   if (mode === "APPLY") {
     const appliedEntries: AdmissionEntry[] = [];
-    for (const entry of entries) {
+    for (const entry of assessedEntries) {
       if (entry.status !== "WOULD_ADMIT") {
-        appliedEntries.push(entry);
+        appliedEntries.push(notAttempted(entry));
         continue;
       }
 
@@ -119,25 +145,40 @@ export async function admitProjects(vaultPath: string, mode: AdmissionMode = "PR
 function applied(entry: ProposedAdmissionEntry): AdmissionEntry {
   return {
     status: "ADMITTED",
+    attempted: true,
     relativePath: entry.relativePath,
     projectRelativePath: entry.projectRelativePath,
     evidence: entry.evidence,
-    result: "Created and verified a new direct regular project.md file."
+    result: "Succeeded: created and verified a new direct regular project.md file."
   };
 }
 
 function failed(entry: ProposedAdmissionEntry, error: unknown): AdmissionEntry {
   return {
     status: "ERROR",
+    attempted: true,
     relativePath: entry.relativePath,
     projectRelativePath: entry.projectRelativePath,
     evidence: entry.evidence,
-    result: `No admission was confirmed: ${errorMessage(error)}`,
-    recommendation: "Investigate the execution failure, preserve the existing target state, and rerun only after review."
+    result: `Failed: creation was attempted, but no admission was confirmed: ${errorMessage(error)}`,
+    recovery: "Investigate the execution failure, preserve the existing target state, and rerun only after review."
   };
 }
 
-async function assessCandidate(candidate: ProvisionalSongCandidate, vaultPath: string): Promise<AdmissionEntry> {
+function notAttempted(entry: ReviewedAdmissionEntry): NotAttemptedAdmissionEntry {
+  return {
+    status: entry.status,
+    attempted: false,
+    relativePath: entry.relativePath,
+    projectRelativePath: entry.projectRelativePath,
+    evidence: entry.evidence,
+    result: entry.status === "SKIPPED"
+      ? "Skipped: no mutation was attempted because the observed path was not an eligible missing project.md."
+      : "Unverified: no mutation was attempted because admission eligibility could not be established from the observed evidence."
+  };
+}
+
+async function assessCandidate(candidate: ProvisionalSongCandidate, vaultPath: string): Promise<AssessedAdmissionEntry> {
   const projectRelativePath = path.join(candidate.relativePath, "project.md");
   if (candidate.admissionReason !== "missing-project-file") {
     return {
@@ -174,7 +215,7 @@ async function assessCandidate(candidate: ProvisionalSongCandidate, vaultPath: s
   };
 }
 
-function skipped(song: ManagedSong): AdmissionEntry {
+function skipped(song: ManagedSong): ReviewedAdmissionEntry {
   return {
     status: "SKIPPED", relativePath: song.relativePath, projectRelativePath: path.join(song.relativePath, "project.md"),
     evidence: ["Discovery classified this song as managed through its existing direct regular non-link project.md."],
